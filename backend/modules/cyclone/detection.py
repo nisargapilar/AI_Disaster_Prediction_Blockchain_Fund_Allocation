@@ -182,7 +182,9 @@ async def fetch_and_process():
 
                     else "not_applicable"
 
-                )
+                ),
+                 created_at=datetime.now(timezone.utc),
+
             )
 
 

@@ -1,5 +1,5 @@
-from sqlalchemy import Column, String, Float, Text
-from sqlalchemy.dialects.postgresql import UUID, JSONB, TIMESTAMP
+from sqlalchemy import Column, String, Float, Text, func
+from sqlalchemy.dialects.postgresql import UUID, JSONB, TIMESTAMP 
 from db import Base
 import uuid
 
@@ -18,4 +18,4 @@ class EventModel(Base):
     risk_score = Column(Float, nullable=False)
     severity_tier = Column(String, nullable=False)
     fund_status = Column(String, nullable=False, default="not_applicable")
-    created_at = Column(TIMESTAMP(timezone=True))
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())

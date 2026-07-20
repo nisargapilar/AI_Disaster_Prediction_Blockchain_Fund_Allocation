@@ -79,7 +79,9 @@ async def detect(
             "pending"
             if result["severity_tier"] in ["high", "critical"]
             else "not_applicable"
-        )
+        ),
+        created_at=datetime.now(timezone.utc),
+
     )
 
     async with async_session() as session:
@@ -131,7 +133,9 @@ async def simulate(
             "pending"
             if result["severity_tier"] in ["high", "critical"]
             else "not_applicable"
-        )
+        ),
+                created_at=datetime.now(timezone.utc),
+
     )
 
     async with async_session() as session:

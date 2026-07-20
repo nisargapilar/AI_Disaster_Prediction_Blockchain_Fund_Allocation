@@ -47,6 +47,8 @@ async def simulate(magnitude: float, lat: float, lon: float, region: str = "Simu
         risk_score=score,
         severity_tier=tier,
         fund_status="pending" if is_fund_eligible(tier) else "not_applicable",
+        created_at=datetime.now(timezone.utc),   
+
     )
     async with async_session() as session:
         session.add(row)
