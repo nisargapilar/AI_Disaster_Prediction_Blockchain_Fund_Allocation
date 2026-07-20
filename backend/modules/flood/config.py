@@ -1,4 +1,13 @@
-# modules/flood/config.py
+
+
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+
+OPEN_METEO_API_URL = os.getenv("OPEN_METEO_API_URL")
 
 # Locations to monitor
 LOCATIONS = [

@@ -12,7 +12,7 @@ from modules.flood.severity import (
     is_fund_eligible,
 )
 
-from modules.flood.config import POLL_INTERVAL_SECONDS
+from modules.flood.config import POLL_INTERVAL_SECONDS, OPEN_METEO_API_URL
 
 
 # Locations to monitor
@@ -98,14 +98,13 @@ async def predict_flood(
             print("=================================")
             raise
 
-
 async def fetch_weather(location):
     """
     Fetch latest weather data from Open-Meteo.
     """
 
     url = (
-        "https://api.open-meteo.com/v1/forecast"
+        f"{OPEN_METEO_API_URL}"
         f"?latitude={location['lat']}"
         f"&longitude={location['lon']}"
         "&hourly=precipitation,temperature_2m,relative_humidity_2m"
