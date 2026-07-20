@@ -33,15 +33,20 @@ def serialize(row: EventModel):
     }
 
 
-# Manual cyclone detection
+# --------------------------------------------------
+# REAL DETECTION (OpenWeather API)
+# GET /cyclone/detect
+# --------------------------------------------------
 @router.get("/detect")
-async def cyclone_detection(
-    wind_speed: float,
-    pressure: float,
+async def detect(
     lat: float,
-    lon: float,
-    region: str = "Simulated Region"
+    lon: float
 ):
+
+    weather = await fetch_weather(lat, lon)
+
+    wind_speed = weather["wind"]["speed"]
+    pressure = weather["main"]["pressure"]
 
     result = detect_cyclone(
         wind_speed,
@@ -50,18 +55,26 @@ async def cyclone_detection(
 
     row = EventModel(
         disaster_type="cyclone",
-        source="simulated",
-        external_id=f"cyclone_{uuid.uuid4()}",
+        source="real",
+
+        external_id=f"openweather_{uuid.uuid4()}",
         event_time=datetime.now(timezone.utc),
-        lat=lat,
-        lon=lon,
-        region=region,
+
+        # Coordinates returned by OpenWeather
+        lat=weather["coord"]["lat"],
+        lon=weather["coord"]["lon"],
+
+        # City name returned by OpenWeather
+        region=weather.get("name", "Unknown"),
+
         input_data={
             "wind_speed": wind_speed,
             "pressure": pressure
         },
+
         risk_score=result["risk_score"],
         severity_tier=result["severity_tier"],
+
         fund_status=(
             "pending"
             if result["severity_tier"] in ["high", "critical"]
@@ -77,8 +90,10 @@ async def cyclone_detection(
     return serialize(row)
 
 
-
-# Simulation endpoint
+# --------------------------------------------------
+# SIMULATION
+# POST /cyclone/simulate
+# --------------------------------------------------
 @router.post("/simulate")
 async def simulate(
     wind_speed: float,
@@ -96,17 +111,22 @@ async def simulate(
     row = EventModel(
         disaster_type="cyclone",
         source="simulated",
+
         external_id=f"cyclone_{uuid.uuid4()}",
         event_time=datetime.now(timezone.utc),
+
         lat=lat,
         lon=lon,
         region=region,
+
         input_data={
             "wind_speed": wind_speed,
             "pressure": pressure
         },
+
         risk_score=result["risk_score"],
         severity_tier=result["severity_tier"],
+
         fund_status=(
             "pending"
             if result["severity_tier"] in ["high", "critical"]
@@ -118,67 +138,5 @@ async def simulate(
         session.add(row)
         await session.commit()
         await session.refresh(row)
-
-    return serialize(row)
-
-
-
-# Real cyclone detection using OpenWeather
-@router.get("/real-detect")
-async def real_cyclone_detection(
-    lat: float,
-    lon: float
-):
-
-    # Fetch live weather data
-    weather = await fetch_weather(
-        lat,
-        lon
-    )
-
-
-    # Calculate cyclone risk
-    result = detect_cyclone(
-        weather["wind_speed"],
-        weather["pressure"]
-    )
-
-
-    row = EventModel(
-        disaster_type="cyclone",
-        source="real",
-
-        # Generated external id
-        external_id=f"openweather_{uuid.uuid4()}",
-
-        event_time=datetime.now(timezone.utc),
-
-        lat=weather["lat"],
-        lon=weather["lon"],
-
-        region=weather["region"],
-
-        input_data={
-            "wind_speed": weather["wind_speed"],
-            "pressure": weather["pressure"]
-        },
-
-        risk_score=result["risk_score"],
-
-        severity_tier=result["severity_tier"],
-
-        fund_status=(
-            "pending"
-            if result["severity_tier"] in ["high", "critical"]
-            else "not_applicable"
-        )
-    )
-
-
-    async with async_session() as session:
-        session.add(row)
-        await session.commit()
-        await session.refresh(row)
-
 
     return serialize(row)

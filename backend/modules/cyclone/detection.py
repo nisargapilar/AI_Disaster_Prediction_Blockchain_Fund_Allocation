@@ -2,18 +2,24 @@
 
 import httpx
 import asyncio
+import uuid
+
 from datetime import datetime, timezone
+
+from db import async_session
+from models import EventModel
 
 from modules.cyclone.config import (
     WEATHER_API_URL,
     WEATHER_API_KEY,
-    POLL_INTERVAL_SECONDS
+    POLL_INTERVAL_SECONDS,
+    CYCLONE_MONITOR_LOCATIONS
 )
 
 
 async def fetch_weather(lat, lon):
     """
-    Fetch real weather data from OpenWeather API
+    Fetch real weather data from OpenWeather API.
     """
 
     params = {
@@ -24,7 +30,6 @@ async def fetch_weather(lat, lon):
     }
 
     async with httpx.AsyncClient() as client:
-
         response = await client.get(
             WEATHER_API_URL,
             params=params,
@@ -33,124 +38,183 @@ async def fetch_weather(lat, lon):
 
         response.raise_for_status()
 
-        data = response.json()
-
-    return data
+        return response.json()
 
 
 
-def detect_cyclone(
-        wind_speed,
-        pressure,
-        lat,
-        lon
-):
+def detect_cyclone(wind_speed, pressure):
     """
-    Calculate cyclone risk
+    Calculate cyclone risk based on wind speed and pressure.
     """
 
     risk_score = 0
 
-
     # Wind speed calculation
     if wind_speed >= 120:
         risk_score += 50
-
     elif wind_speed >= 80:
         risk_score += 30
-
 
     # Pressure calculation
     if pressure <= 980:
         risk_score += 50
-
     elif pressure <= 1000:
         risk_score += 30
 
 
-
-    # Severity
-
+    # Determine severity
     if risk_score >= 80:
         severity = "critical"
-
     elif risk_score >= 50:
         severity = "high"
-
     elif risk_score >= 30:
         severity = "medium"
-
     else:
         severity = "low"
 
-
-
     return {
-        "disaster_type": "cyclone",
-        "source": "real",
-
-        "latitude": lat,
-        "longitude": lon,
-
-        "wind_speed": wind_speed,
-        "pressure": pressure,
-
-        "risk_score": risk_score,
-        "severity_tier": severity,
-
-        "event_time": datetime.now(timezone.utc)
+        "risk_score": risk_score / 100,
+        "severity_tier": severity
     }
 
 
-
 async def fetch_and_process():
+    """
+    Monitor all configured cyclone-prone locations
+    and save real cyclone events into database.
+    """
 
     print("Checking cyclone data...")
 
-
-    # Location to monitor
-    lat = 13.08
-    lon = 80.27
+    results = []
 
 
-    # 1. Get weather
-    weather = await fetch_weather(
-        lat,
-        lon
-    )
+    for location in CYCLONE_MONITOR_LOCATIONS:
+
+        try:
+
+            weather = await fetch_weather(
+                location["lat"],
+                location["lon"]
+            )
 
 
-    # 2. Extract values
+            # Convert m/s to km/h
+            wind_speed = weather["wind"]["speed"] * 3.6
 
-    wind_speed = weather["wind"]["speed"]
-
-    pressure = weather["main"]["pressure"]
-
-
-    # 3. Detect cyclone
-
-    cyclone_result = detect_cyclone(
-        wind_speed,
-        pressure,
-        lat,
-        lon
-    )
+            pressure = weather["main"]["pressure"]
 
 
-    print(
-        "Cyclone result:",
-        cyclone_result
-    )
+            result = detect_cyclone(
+                wind_speed,
+                pressure
+            )
 
 
-    # Database saving will be added here
+            cyclone_result = {
+
+                "disaster_type": "cyclone",
+
+                "source": "real",
+
+                "state": location["state"],
+
+                "region": location["region"],
+
+                "latitude": location["lat"],
+
+                "longitude": location["lon"],
+
+                "wind_speed": wind_speed,
+
+                "pressure": pressure,
+
+                "risk_score": result["risk_score"],
+
+                "severity_tier": result["severity_tier"]
+
+            }
 
 
-    return cyclone_result
+            print(
+                "Cyclone result:",
+                cyclone_result
+            )
+
+
+            # -------------------------------
+            # SAVE REAL EVENT TO DATABASE
+            # -------------------------------
+
+            row = EventModel(
+
+                disaster_type="cyclone",
+
+                source="real",
+
+                external_id=f"openweather_{uuid.uuid4()}",
+
+                event_time=datetime.now(timezone.utc),
+
+                lat=location["lat"],
+
+                lon=location["lon"],
+
+                region=location["region"],
+
+                input_data={
+
+                    "wind_speed": wind_speed,
+
+                    "pressure": pressure
+
+                },
+
+                risk_score=result["risk_score"],
+
+                severity_tier=result["severity_tier"],
+
+                fund_status=(
+
+                    "pending"
+
+                    if result["severity_tier"] in ["high", "critical"]
+
+                    else "not_applicable"
+
+                )
+            )
+
+
+            async with async_session() as session:
+
+                session.add(row)
+
+                await session.commit()
+
+
+
+            results.append(cyclone_result)
+
+
+
+        except Exception as e:
+
+            print(
+                f"Error checking {location['region']}:",
+                e
+            )
+
+
+    return results
+
 
 
 
 async def start_polling():
+    """
+    Poll weather data every configured interval.
+    """
 
     print("Cyclone polling started")
 
@@ -170,7 +234,6 @@ async def start_polling():
             )
 
 
-        # 1 hour
         await asyncio.sleep(
             POLL_INTERVAL_SECONDS
         )

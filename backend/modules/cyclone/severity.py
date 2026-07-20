@@ -11,28 +11,21 @@ def compute_severity(wind_speed, pressure):
     # Wind speed calculation
     if wind_speed >= 120:
         score += 50
-
     elif wind_speed >= 80:
         score += 30
-
 
     # Pressure calculation
     if pressure <= 980:
         score += 50
-
     elif pressure <= 1000:
         score += 30
 
-
     # Find severity tier
     for threshold, tier, confidence in SEVERITY_THRESHOLDS:
-
         if score >= threshold:
-            return tier, score
+            return tier, score, confidence
 
-
-    return "low", score
-
+    return "low", score, 0.2
 
 
 def is_fund_eligible(tier):
