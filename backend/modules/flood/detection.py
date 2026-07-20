@@ -80,6 +80,8 @@ async def predict_flood(
         if is_fund_eligible(tier)
         else "not_applicable"
     ),
+        created_at=datetime.now(timezone.utc),
+
 )
 
     async with async_session() as session:
