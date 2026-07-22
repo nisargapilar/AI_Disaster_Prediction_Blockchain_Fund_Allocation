@@ -34,6 +34,7 @@ async def fetch_and_process():
                 risk_score=score,
                 severity_tier=tier,
                 fund_status="pending" if is_fund_eligible(tier) else "not_applicable",
+                created_at=datetime.now(timezone.utc), 
             )
             session.add(row)
             try:
