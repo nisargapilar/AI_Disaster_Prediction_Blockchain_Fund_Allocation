@@ -4,7 +4,7 @@ import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
 # Load the CSV file
-data = pd.read_csv('Data.csv', encoding='latin1')
+data = pd.read_csv('../data/raw/data.csv', encoding='latin1')
 
 if 'magnitude' not in data.columns:
     possible_names = ['Magnitude', 'MAGNITUDE', 'mag', 'Mag']
@@ -60,6 +60,6 @@ data['hour'] = data['time'].dt.hour
 print("Time-based features extracted.")
 
 # Save preprocessed data to CSV
-data.to_csv('preprocessed_earthquake_data.csv', index=False)
-print(f"\nPreprocessed data saved to 'preprocessed_earthquake_data.csv'.")
+data.to_csv('../data/processed/preprocessed_earthquake_data.csv', index=False)
+print("\nPreprocessed data saved to '../data/processed/preprocessed_earthquake_data.csv'.")
 print(f"Total rows: {len(data)}")
