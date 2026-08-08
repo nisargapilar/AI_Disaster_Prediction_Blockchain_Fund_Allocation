@@ -1,0 +1,9 @@
+CNN-LSTM Cyclone Prediction Results
+====================================
+
+Accuracy : 0.8521
+Precision: 0.3962
+Recall   : 0.4375
+F1       : 0.4158
+ROC-AUC  : 0.7943
+PR-AUC   : 0.4049

@@ -1,0 +1,8 @@
+Baseline LSTM — Cyclone Intensification
+========================================
+Accuracy: 0.8314
+Precision: 0.2738
+Recall: 0.3594
+F1: 0.3108
+ROC-AUC: 0.7369
+PR-AUC: 0.2445
