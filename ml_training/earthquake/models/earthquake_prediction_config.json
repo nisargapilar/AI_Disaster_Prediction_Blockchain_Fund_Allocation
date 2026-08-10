@@ -1,0 +1,13 @@
+{
+    "sequence_length": 20,
+    "features": [
+        "latitude",
+        "longitude",
+        "depth",
+        "time_diff",
+        "dist_to_center"
+    ],
+    "threshold": 0.11,
+    "threshold_selection_metric": "F1",
+    "best_validation_f1": 0.11131498470948012
+}
