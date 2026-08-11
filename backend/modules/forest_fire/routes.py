@@ -21,6 +21,7 @@ def serialize(row: EventModel):
         "risk_score": row.risk_score,
         "severity_tier": row.severity_tier,
         "fund_status": row.fund_status,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
     }
 
 
