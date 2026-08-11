@@ -1,0 +1,4 @@
+Model,Accuracy,Precision,Recall,F1-Score
+Logistic Regression,86.46,86.52,86.43,86.47
+Random Forest,89.42,89.51,89.4,89.44
+XGBoost,90.45,90.48,90.43,90.46
