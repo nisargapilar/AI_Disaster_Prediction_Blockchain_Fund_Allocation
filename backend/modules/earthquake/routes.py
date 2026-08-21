@@ -5,8 +5,10 @@ from sqlalchemy import select
 from db import async_session
 from models import EventModel
 from modules.earthquake.severity import compute_severity, is_fund_eligible
+from modules.earthquake.prediction import run_prediction_once
 
 router = APIRouter(prefix="/earthquake", tags=["earthquake"])
+
 
 def serialize(row: EventModel):
     return {
@@ -21,6 +23,7 @@ def serialize(row: EventModel):
         "fund_status": row.fund_status,
     }
 
+
 @router.get("/events")
 async def get_events():
     async with async_session() as session:
@@ -31,6 +34,7 @@ async def get_events():
             .limit(50)
         )
         return [serialize(r) for r in result.scalars().all()]
+
 
 @router.post("/simulate")
 async def simulate(magnitude: float, lat: float, lon: float, region: str = "Simulated Region"):
@@ -47,11 +51,16 @@ async def simulate(magnitude: float, lat: float, lon: float, region: str = "Simu
         risk_score=score,
         severity_tier=tier,
         fund_status="pending" if is_fund_eligible(tier) else "not_applicable",
-        created_at=datetime.now(timezone.utc),   
-
+        created_at=datetime.now(timezone.utc),
     )
     async with async_session() as session:
         session.add(row)
         await session.commit()
         await session.refresh(row)
     return serialize(row)
+
+
+@router.post("/predict-now")
+async def predict_now():
+    await run_prediction_once()
+    return {"status": "prediction_triggered"}

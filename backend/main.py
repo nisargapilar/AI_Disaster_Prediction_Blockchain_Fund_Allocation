@@ -1,9 +1,14 @@
 from fastapi import FastAPI
 import asyncio
 
+from modules.notify.routes import router as notify_router
+
+
 # Earthquake
 from modules.earthquake.routes import router as earthquake_router
 from modules.earthquake.detection import start_polling as earthquake_start_polling
+from modules.earthquake.prediction import prediction_loop as earthquake_prediction_loop
+
 from modules.forest_fire.routes import router as forest_fire_router
 from modules.forest_fire.detection import start_polling as forest_fire_start_polling
 
@@ -20,6 +25,7 @@ app = FastAPI(
 )
 
 # Register API routes
+app.include_router(notify_router)
 app.include_router(earthquake_router)
 app.include_router(forest_fire_router)
 app.include_router(flood_router)
@@ -31,6 +37,7 @@ async def startup_event():
     print("STARTUP EVENT RUNNING")
 
     asyncio.create_task(earthquake_start_polling())
+    asyncio.create_task(earthquake_prediction_loop())
     asyncio.create_task(forest_fire_start_polling())
     asyncio.create_task(flood_start_polling())
     asyncio.create_task(cyclone_start_polling())
