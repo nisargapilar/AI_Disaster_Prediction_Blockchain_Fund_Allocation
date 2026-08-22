@@ -8,6 +8,8 @@ from sqlalchemy import select
 from db import async_session
 from models import SubscriberModel
 from modules.notify.email_service import send_confirmation_email
+from modules.notify.digest import run_digest_once
+
 
 router = APIRouter(prefix="/subscribe", tags=["notifications"])
 
@@ -68,3 +70,8 @@ async def unsubscribe(token: str):
         sub.is_active = False
         await session.commit()
     return {"status": "unsubscribed"}
+
+@router.post("/digest-now")
+async def digest_now():
+    await run_digest_once()
+    return {"status": "digest_triggered"}

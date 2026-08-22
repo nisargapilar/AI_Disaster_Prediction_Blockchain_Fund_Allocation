@@ -8,6 +8,7 @@ from modules.notify.routes import router as notify_router
 from modules.earthquake.routes import router as earthquake_router
 from modules.earthquake.detection import start_polling as earthquake_start_polling
 from modules.earthquake.prediction import prediction_loop as earthquake_prediction_loop
+from modules.notify.digest import digest_loop
 
 from modules.forest_fire.routes import router as forest_fire_router
 from modules.forest_fire.detection import start_polling as forest_fire_start_polling
@@ -35,9 +36,10 @@ app.include_router(cyclone_router)
 @app.on_event("startup")
 async def startup_event():
     print("STARTUP EVENT RUNNING")
-
     asyncio.create_task(earthquake_start_polling())
     asyncio.create_task(earthquake_prediction_loop())
+    asyncio.create_task(digest_loop())          # NEW
+
     asyncio.create_task(forest_fire_start_polling())
     asyncio.create_task(flood_start_polling())
     asyncio.create_task(cyclone_start_polling())
