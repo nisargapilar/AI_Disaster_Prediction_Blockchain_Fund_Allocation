@@ -1,0 +1,49 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_28-5f81d1263153670838e5cc58ccb88a6aa31a1f2d",
+  "solcVersion": "0.8.28",
+  "solcLongVersion": "0.8.28+commit.7893614a",
+  "compilerType": "solc",
+  "toolVersions": {
+    "hardhat": "3.14.0"
+  },
+  "userSourceNameMap": {
+    "contracts/DisasterRelief.sol": "project/contracts/DisasterRelief.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "cancun",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode.linkReferences",
+            "evm.bytecode.object",
+            "evm.bytecode.opcodes",
+            "evm.bytecode.sourceMap",
+            "evm.deployedBytecode.immutableReferences",
+            "evm.deployedBytecode.linkReferences",
+            "evm.deployedBytecode.object",
+            "evm.deployedBytecode.opcodes",
+            "evm.deployedBytecode.sourceMap",
+            "evm.methodIdentifiers"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/DisasterRelief.sol": {
+        "content": "// SPDX-License-Identifier: MIT\r\npragma solidity ^0.8.24;\r\n\r\n/// @title DisasterRelief\r\n/// @notice Minimal version: single-shot fund release per event (no milestone\r\n///         tranches yet) plus on-chain beneficiary hash verification.\r\n///         Only the triggerAuthority (the backend's wallet) may release\r\n///         funds or verify beneficiaries. The owner may change the\r\n///         triggerAuthority if needed (e.g. key rotation).\r\ncontract DisasterRelief {\r\n    address public owner;\r\n    address public triggerAuthority;\r\n\r\n    // beneficiaryHash => verified\r\n    mapping(bytes32 => bool) public verifiedBeneficiaries;\r\n\r\n    event FundsReleased(address indexed to, uint256 amount, string eventId);\r\n    event BeneficiaryVerified(bytes32 indexed beneficiaryHash, string distributionRecordId);\r\n    event TriggerAuthorityChanged(address indexed oldAuthority, address indexed newAuthority);\r\n    event Funded(address indexed from, uint256 amount);\r\n\r\n    modifier onlyOwner() {\r\n        require(msg.sender == owner, \"Not owner\");\r\n        _;\r\n    }\r\n\r\n    modifier onlyTriggerAuthority() {\r\n        require(msg.sender == triggerAuthority, \"Not trigger authority\");\r\n        _;\r\n    }\r\n\r\n    constructor(address _triggerAuthority) {\r\n        owner = msg.sender;\r\n        triggerAuthority = _triggerAuthority;\r\n    }\r\n\r\n    /// @notice Anyone can top up the contract's balance (e.g. the owner,\r\n    ///         funding it before disasters occur).\r\n    receive() external payable {\r\n        emit Funded(msg.sender, msg.value);\r\n    }\r\n\r\n    /// @notice Release funds to an NGO/local-govt wallet for a confirmed\r\n    ///         disaster event. Only callable by the backend's trigger\r\n    ///         authority wallet. eventId ties this release back to a row\r\n    ///         in the off-chain `events` table for auditability.\r\n    function releaseFunds(address payable ngoWallet, uint256 amount, string calldata eventId)\r\n        external\r\n        onlyTriggerAuthority\r\n    {\r\n        require(ngoWallet != address(0), \"Invalid wallet\");\r\n        require(address(this).balance >= amount, \"Insufficient contract balance\");\r\n\r\n        (bool sent, ) = ngoWallet.call{value: amount}(\"\");\r\n        require(sent, \"Transfer failed\");\r\n\r\n        emit FundsReleased(ngoWallet, amount, eventId);\r\n    }\r\n\r\n    /// @notice Marks a beneficiary as verified on-chain. Only the hash of\r\n    ///         the mock-Aadhaar-style ID is ever stored here — never the\r\n    ///         raw ID. distributionRecordId ties this back to the\r\n    ///         off-chain `distribution_records` row for auditability.\r\n    function verifyBeneficiary(bytes32 beneficiaryHash, string calldata distributionRecordId)\r\n        external\r\n        onlyTriggerAuthority\r\n    {\r\n        require(!verifiedBeneficiaries[beneficiaryHash], \"Already verified\");\r\n        verifiedBeneficiaries[beneficiaryHash] = true;\r\n        emit BeneficiaryVerified(beneficiaryHash, distributionRecordId);\r\n    }\r\n\r\n    /// @notice Public read — anyone can check if a given beneficiary hash\r\n    ///         has been verified, no login required. This is the core\r\n    ///         transparency mechanism: proof a distinct real person was\r\n    ///         confirmed, without exposing their identity.\r\n    function isBeneficiaryVerified(bytes32 beneficiaryHash) external view returns (bool) {\r\n        return verifiedBeneficiaries[beneficiaryHash];\r\n    }\r\n\r\n    /// @notice Lets the owner rotate the backend's authorized wallet\r\n    ///         (e.g. if the private key needs to be replaced).\r\n    function setTriggerAuthority(address newAuthority) external onlyOwner {\r\n        require(newAuthority != address(0), \"Invalid address\");\r\n        address old = triggerAuthority;\r\n        triggerAuthority = newAuthority;\r\n        emit TriggerAuthorityChanged(old, newAuthority);\r\n    }\r\n\r\n    function contractBalance() external view returns (uint256) {\r\n        return address(this).balance;\r\n    }\r\n}"
+      }
+    }
+  }
+}
