@@ -57,8 +57,7 @@ async def simulate_detection(magnitude: float, lat: float, lon: float, region: s
         await session.refresh(row)
     return serialize(row)
 
-from models import EventModel, PredictionModel  # add PredictionModel import
-from sqlalchemy import select
+
 
 
 def serialize_prediction(row: PredictionModel):
