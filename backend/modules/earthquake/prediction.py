@@ -23,9 +23,9 @@ from modules.notify.dispatch import notify_subscribers
 from db import async_session
 from models import EventModel, PredictionModel
 
-MODEL_PATH = "ml_artifacts/earthquake_cnn_lstm.keras"
-SCALER_PATH = "ml_artifacts/earthquake_scaler.pkl"
-FEATURE_REF_PATH = "ml_artifacts/earthquake_feature_reference.json"
+MODEL_PATH = "ml_artifacts/earthquake_artifacts/earthquake_cnn_lstm.keras"
+SCALER_PATH = "ml_artifacts/earthquake_artifacts/earthquake_scaler.pkl"
+FEATURE_REF_PATH = "ml_artifacts/earthquake_artifacts/earthquake_feature_reference.json"
 
 SEVERITY_CONFIG_PATH = "config/severity_config.json"
 
