@@ -1,7 +1,10 @@
 from fastapi import FastAPI
 import asyncio
 
+#email notification
 from modules.notify.routes import router as notify_router
+#adding middleware for CORS to allow requests from the frontend
+from fastapi.middleware.cors import CORSMiddleware
 
 
 # Earthquake
@@ -23,6 +26,16 @@ from modules.cyclone.detection import start_polling as cyclone_start_polling
 
 app = FastAPI(
     title="AI Disaster Prediction and Fund Allocation System"
+)
+
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],  # Vite's dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Register API routes
