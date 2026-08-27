@@ -19,8 +19,8 @@ from sklearn.metrics import (
 # 1. LOAD DATASET
 # ============================================================
 
-df_archive = pd.read_csv("fire_archive_M6_107977.csv")
-df_nrt = pd.read_csv("fire_nrt_M6_107977.csv")
+df_archive = pd.read_csv("data/raw/fire_archive_M6_107977.csv")
+df_nrt = pd.read_csv("data/raw/fire_nrt_M6_107977.csv")
 
 df = pd.concat(
     [df_archive, df_nrt],
@@ -407,55 +407,184 @@ print(
 
 
 # ============================================================
-# 17. SAVE MODEL
+# 17. SAVE PRODUCTION ARTIFACTS
 # ============================================================
+
+import os
+import json
+
+# ------------------------------------------------------------
+# FIND PROJECT ROOT
+# ------------------------------------------------------------
+# Current file:
+# PROJECT_ROOT/ml_training/forestfire/forestfire_train_xgboost.py
+#
+# Therefore:
+# forestfire -> ml_training -> PROJECT_ROOT
+
+PROJECT_ROOT = os.path.abspath(
+    os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        ".."
+    )
+)
+
+ARTIFACT_DIR = os.path.join(
+    PROJECT_ROOT,
+    "backend",
+    "ml_artifacts",
+    "forestfire_artifacts"
+)
+
+os.makedirs(
+    ARTIFACT_DIR,
+    exist_ok=True
+)
+
+print("\n" + "=" * 60)
+print("SAVING FOREST FIRE PRODUCTION ARTIFACTS")
+print("=" * 60)
+
+print("\nArtifact directory:")
+print(ARTIFACT_DIR)
+
+
+# ============================================================
+# SAVE XGBOOST MODEL
+# ============================================================
+
+MODEL_PATH = os.path.join(
+    ARTIFACT_DIR,
+    "forestfire_xgboost.pkl"
+)
 
 joblib.dump(
     model,
-    "fire_severity_xgb_model.pkl"
+    MODEL_PATH
 )
 
+
+# ============================================================
+# SAVE LABEL ENCODER
+# ============================================================
+
+LABEL_ENCODER_PATH = os.path.join(
+    ARTIFACT_DIR,
+    "forestfire_label_encoder.pkl"
+)
 
 joblib.dump(
     label_encoder,
-    "severity_label_encoder.pkl"
+    LABEL_ENCODER_PATH
 )
 
 
-joblib.dump(
-    feature_cols,
-    "feature_columns.pkl"
-)
+# ============================================================
+# SAVE IMPUTER
+# ============================================================
 
+IMPUTER_PATH = os.path.join(
+    ARTIFACT_DIR,
+    "forestfire_imputer.pkl"
+)
 
 joblib.dump(
     imputer,
-    "fire_severity_imputer.pkl"
+    IMPUTER_PATH
+)
+
+
+# ============================================================
+# SAVE FEATURE REFERENCE
+# ============================================================
+
+FEATURE_REF_PATH = os.path.join(
+    ARTIFACT_DIR,
+    "forestfire_feature_reference.json"
+)
+
+feature_reference = {
+    "features": feature_cols,
+    "classes": label_encoder.classes_.tolist(),
+    "model_type": "XGBClassifier",
+    "target": "severity_tier",
+    "imputer_strategy": "median"
+}
+
+with open(
+    FEATURE_REF_PATH,
+    "w",
+    encoding="utf-8"
+) as f:
+
+    json.dump(
+        feature_reference,
+        f,
+        indent=4
+    )
+
+
+# ============================================================
+# VERIFY ARTIFACTS
+# ============================================================
+
+print("\n" + "=" * 60)
+print("VERIFYING SAVED ARTIFACTS")
+print("=" * 60)
+
+artifact_paths = [
+    MODEL_PATH,
+    IMPUTER_PATH,
+    LABEL_ENCODER_PATH,
+    FEATURE_REF_PATH
+]
+
+for path in artifact_paths:
+
+    if not os.path.exists(path):
+
+        raise FileNotFoundError(
+            f"Artifact was not created:\n{path}"
+        )
+
+    file_size = os.path.getsize(path)
+
+    print(
+        f"\n{os.path.basename(path)}"
+    )
+
+    print(
+        f"Size: {file_size:,} bytes"
+    )
+
+    if file_size == 0:
+
+        raise RuntimeError(
+            f"ERROR: Artifact is EMPTY:\n{path}"
+        )
+
+
+# ============================================================
+# PRINT FEATURE INFORMATION
+# ============================================================
+
+print("\nFeatures:")
+
+for feature in feature_cols:
+
+    print(
+        f"  - {feature}"
+    )
+
+
+print("\nClasses:")
+
+print(
+    label_encoder.classes_
 )
 
 
 print("\n" + "=" * 60)
-
-print("MODEL SAVED SUCCESSFULLY")
-
+print("✅ FOREST FIRE PRODUCTION ARTIFACTS READY!")
 print("=" * 60)
-
-print(
-    "\nfire_severity_xgb_model.pkl"
-)
-
-print(
-    "severity_label_encoder.pkl"
-)
-
-print(
-    "feature_columns.pkl"
-)
-
-print(
-    "fire_severity_imputer.pkl"
-)
-
-print(
-    "\n✅ XGBoost training completed!"
-)

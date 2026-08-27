@@ -4,6 +4,7 @@ import Navbar from "./components/Navbar";
 import Dashboard from "./pages/Dashboard";
 import DisasterSelect from "./pages/DisasterSelect";
 import EarthquakeDetection from "./pages/detection/EarthquakeDetection";
+import ForestFireDetection from "./pages/detection/ForestFireDetection";
 import EarthquakePrediction from "./pages/prediction/EarthquakePrediction";
 import FundsPlaceholder from "./pages/funds/FundsPlaceholder";
 
@@ -20,6 +21,8 @@ function Shell() {
     page = <DisasterSelect mode="prediction" setView={setView} />;
   else if (view === "eq-detection")
     page = <EarthquakeDetection setView={setView} />;
+  else if (view === "forest-fire-detection")
+  page = <ForestFireDetection setView={setView} />;
   else if (view === "eq-prediction")
     page = <EarthquakePrediction setView={setView} />;
   else if (view === "funds") page = <FundsPlaceholder />;

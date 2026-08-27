@@ -3,10 +3,10 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 
 from db import async_session
-from models import EventModel
+from models import EventModel, PredictionModel
 from modules.forest_fire.severity import compute_severity, is_fund_eligible
 from modules.forest_fire import detection
-
+from modules.forest_fire.prediction import predict_now
 router = APIRouter(prefix="/forest_fire", tags=["forest_fire"])
 
 
@@ -83,3 +83,82 @@ async def simulate(confidence: str = "high", frp: float = 80.0,
         await session.commit()
         await session.refresh(row)
     return serialize(row)
+# --------------------------------------------------
+# FOREST FIRE PREDICTIONS
+# GET /forest_fire/predictions
+# --------------------------------------------------
+
+@router.get("/predictions")
+async def get_predictions():
+
+    async with async_session() as session:
+
+        result = await session.execute(
+            select(PredictionModel)
+            .where(
+                PredictionModel.disaster_type == "forest_fire"
+            )
+            .order_by(
+                PredictionModel.predicted_time.desc()
+            )
+            .limit(50)
+        )
+
+        predictions = result.scalars().all()
+
+        return [
+            {
+                "prediction_id": str(p.prediction_id),
+                "disaster_type": p.disaster_type,
+                "region": p.region,
+                "predicted_time": (
+                    p.predicted_time.isoformat()
+                    if p.predicted_time
+                    else None
+                ),
+                "risk_score": p.risk_score,
+                "severity_tier": p.severity_tier,
+                "matched_event_id": (
+                    str(p.matched_event_id)
+                    if p.matched_event_id
+                    else None
+                ),
+                "is_simulated": p.is_simulated,
+                "input_data": p.input_data,
+            }
+            for p in predictions
+        ]
+
+
+# --------------------------------------------------
+# CREATE FOREST FIRE PREDICTIONS NOW
+# POST /forest_fire/predict
+# --------------------------------------------------
+
+@router.post("/predict")
+async def create_predictions():
+
+    predictions = await predict_now()
+
+    return [
+        {
+            "prediction_id": str(p.prediction_id),
+            "disaster_type": p.disaster_type,
+            "region": p.region,
+            "predicted_time": (
+                p.predicted_time.isoformat()
+                if p.predicted_time
+                else None
+            ),
+            "risk_score": p.risk_score,
+            "severity_tier": p.severity_tier,
+            "matched_event_id": (
+                str(p.matched_event_id)
+                if p.matched_event_id
+                else None
+            ),
+            "is_simulated": p.is_simulated,
+            "input_data": p.input_data,
+        }
+        for p in predictions
+    ]

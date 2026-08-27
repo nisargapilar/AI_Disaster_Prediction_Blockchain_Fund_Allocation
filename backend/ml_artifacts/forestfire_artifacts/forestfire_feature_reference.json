@@ -1,0 +1,23 @@
+{
+    "features": [
+        "latitude",
+        "longitude",
+        "brightness",
+        "scan",
+        "track",
+        "confidence",
+        "bright_t31",
+        "daynight_encoded",
+        "month",
+        "day_of_year",
+        "type"
+    ],
+    "classes": [
+        "high",
+        "low",
+        "medium"
+    ],
+    "model_type": "XGBClassifier",
+    "target": "severity_tier",
+    "imputer_strategy": "median"
+}

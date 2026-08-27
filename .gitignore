@@ -22,3 +22,5 @@ Thumbs.db
 
 # Misc
 *.log
+
+ml_training/forestfire/models/fire_severity_random_forest_model.pkl

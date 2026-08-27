@@ -61,13 +61,12 @@ export default function RealMap({
         maxBounds={WORLD_BOUNDS}
         maxBoundsViscosity={1.0}
         style={{ height: "100%", width: "100%", background: "#050810" }}
-      >
-        <TileLayer
-          attribution="&copy; OpenStreetMap contributors &copy; CARTO"
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          noWrap
-          bounds={WORLD_BOUNDS}
-        />
+      ><TileLayer
+  attribution='&copy; OpenStreetMap contributors'
+  url="https://{s}.tile.openstreetmap.de/{z}/{x}/{y}.png"
+  noWrap
+  bounds={WORLD_BOUNDS}
+/>
         {points
           .filter((p) => typeof p.lat === "number" && typeof p.lon === "number")
           .map((p) => (
