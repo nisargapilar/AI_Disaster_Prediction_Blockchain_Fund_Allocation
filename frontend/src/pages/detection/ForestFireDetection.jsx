@@ -11,10 +11,7 @@ import { useTheme, surface, accentText } from "../../theme/ThemeContext";
 import { Panel, SevBadge } from "../../components/ui";
 import RealMap from "../../components/RealMap";
 import Breadcrumb from "../../components/Breadcrumb";
-import {
-  detectForestFire,
-  fetchForestFireEvents,
-} from "../../api/forestFire";
+import { fetchForestFireEvents } from "../../api/forestFire";
 
 export default function ForestFireDetection({ setView }) {
   const { theme } = useTheme();
@@ -23,13 +20,7 @@ export default function ForestFireDetection({ setView }) {
   const [events, setEvents] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [detecting, setDetecting] = useState(false);
   const [error, setError] = useState(null);
-
-  // Karnataka default location
-  const [lat, setLat] = useState(15.3173);
-  const [lon, setLon] = useState(75.7139);
-  const [radius, setRadius] = useState(0.5);
 
   async function loadEvents() {
     setLoading(true);
@@ -50,31 +41,12 @@ export default function ForestFireDetection({ setView }) {
     }
   }
 
-  async function detectNow() {
-    setDetecting(true);
-    setError(null);
-
-    try {
-      const raw = await detectForestFire(
-        Number(lat),
-        Number(lon),
-        Number(radius)
-      );
-
-      setEvents(raw);
-
-      if (raw.length) {
-        setSelectedId(raw[0].event_id);
-      }
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setDetecting(false);
-    }
-  }
-
   useEffect(() => {
     loadEvents();
+
+    // Auto-refresh every 30 seconds, matching backend polling cadence
+    const interval = setInterval(loadEvents, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const selected = events.find(
@@ -144,78 +116,6 @@ export default function ForestFireDetection({ setView }) {
             http://127.0.0.1:8000
           </div>
         )}
-
-        {/* ON-DEMAND DETECTION */}
-        <Panel
-          title="NASA FIRMS Detection"
-          icon={Flame}
-          accent="cyan"
-        >
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-
-            <div>
-              <label
-                className={`text-[9px] uppercase tracking-widest ${s.textFaint}`}
-              >
-                Latitude
-              </label>
-
-              <input
-                type="number"
-                step="0.0001"
-                value={lat}
-                onChange={(e) => setLat(e.target.value)}
-                className={`w-full mt-1 px-3 py-2 rounded border ${s.borderSoft} ${s.panel} ${s.textBody} text-xs font-mono`}
-              />
-            </div>
-
-            <div>
-              <label
-                className={`text-[9px] uppercase tracking-widest ${s.textFaint}`}
-              >
-                Longitude
-              </label>
-
-              <input
-                type="number"
-                step="0.0001"
-                value={lon}
-                onChange={(e) => setLon(e.target.value)}
-                className={`w-full mt-1 px-3 py-2 rounded border ${s.borderSoft} ${s.panel} ${s.textBody} text-xs font-mono`}
-              />
-            </div>
-
-            <div>
-              <label
-                className={`text-[9px] uppercase tracking-widest ${s.textFaint}`}
-              >
-                Radius (degrees)
-              </label>
-
-              <input
-                type="number"
-                step="0.1"
-                min="0.1"
-                value={radius}
-                onChange={(e) => setRadius(e.target.value)}
-                className={`w-full mt-1 px-3 py-2 rounded border ${s.borderSoft} ${s.panel} ${s.textBody} text-xs font-mono`}
-              />
-            </div>
-
-            <div className="flex items-end">
-              <button
-                onClick={detectNow}
-                disabled={detecting}
-                className="w-full px-4 py-2 rounded border border-cyan-400/40 bg-cyan-400/10 hover:bg-cyan-400/20 text-cyan-500 text-xs font-mono uppercase tracking-widest"
-              >
-                {detecting
-                  ? "Scanning..."
-                  : "Detect Now"}
-              </button>
-            </div>
-
-          </div>
-        </Panel>
 
         {/* MAP + EVENTS */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

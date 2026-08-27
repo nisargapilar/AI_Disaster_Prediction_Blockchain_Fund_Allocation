@@ -25,7 +25,10 @@ def serialize(row: EventModel):
     }
 
 
-@router.get("/events")
+@router.get(
+    "/detected-forest-fire-events",
+    summary="Detected Forest Fire Events"
+)
 async def get_events():
     async with async_session() as session:
         result = await session.execute(
@@ -43,7 +46,7 @@ async def get_events():
 # Checks a small area around the given point RIGHT NOW, instead of
 # waiting for the background poller's next cycle.
 # --------------------------------------------------
-@router.get("/detect")
+@router.get("/detect", include_in_schema=False)
 async def detect(lat: float, lon: float, radius: float = 0.5):
 
     print("DETECT ROUTE CALLED")
@@ -53,7 +56,10 @@ async def detect(lat: float, lon: float, radius: float = 0.5):
     return events
 
 
-@router.post("/simulate")
+@router.post(
+    "/simulate-detection",
+    summary="Simulate Detection"
+)
 async def simulate(confidence: str = "high", frp: float = 80.0,
                     lat: float = 15.3173, lon: float = 75.7139,
                     region: str = "Simulated Forest Block"):
@@ -88,7 +94,10 @@ async def simulate(confidence: str = "high", frp: float = 80.0,
 # GET /forest_fire/predictions
 # --------------------------------------------------
 
-@router.get("/predictions")
+@router.get(
+    "/predicted-forest-fire-events",
+    summary="Predicted Forest Fire Events"
+)
 async def get_predictions():
 
     async with async_session() as session:
@@ -135,7 +144,10 @@ async def get_predictions():
 # POST /forest_fire/predict
 # --------------------------------------------------
 
-@router.post("/predict")
+@router.post(
+    "/simulate-prediction",
+    summary="Simulate Prediction"
+)
 async def create_predictions():
 
     predictions = await predict_now()
