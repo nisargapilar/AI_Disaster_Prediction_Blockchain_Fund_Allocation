@@ -1,20 +1,51 @@
+import os
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.model_selection import train_test_split
 import joblib
+
+
+# ==========================================
+# PATHS
+# ==========================================
+
+BASE_DIR = os.path.dirname(
+    os.path.dirname(
+        os.path.abspath(__file__)
+    )
+)
+
+INPUT_PATH = os.path.join(
+    BASE_DIR,
+    "data",
+    "raw",
+    "flood.csv"
+)
+
+OUTPUT_PATH = os.path.join(
+    BASE_DIR,
+    "data",
+    "processed",
+    "flood_processed.csv"
+)
+
+SCALER_PATH = os.path.join(
+    BASE_DIR,
+    "data",
+    "processed",
+    "flood_scaler.pkl"
+)
+
 
 # ==========================================
 # 1. Load the raw flood dataset
 # ==========================================
 
-INPUT_PATH = "data/raw/flood.csv"
-OUTPUT_PATH = "data/processed/flood_processed.csv"
-SCALER_PATH = "data/processed/flood_scaler.pkl"
 print("Loading flood dataset...")
 
 data = pd.read_csv(INPUT_PATH)
 
 print(f"Original dataset shape: {data.shape}")
+
 print("\nColumns:")
 print(data.columns.tolist())
 
@@ -44,18 +75,28 @@ print(data.isnull().sum())
 TARGET = "FloodProbability"
 
 if TARGET not in data.columns:
-    raise KeyError(f"Target column '{TARGET}' not found.")
+    raise KeyError(
+        f"Target column '{TARGET}' not found."
+    )
 
-X = data.drop(columns=[TARGET])
+X = data.drop(
+    columns=[TARGET]
+)
+
 y = data[TARGET]
 
 print("\nFeature shape:", X.shape)
 print("Target shape:", y.shape)
 
+print("\nFeatures:")
+print(X.columns.tolist())
+
 
 # ==========================================
 # 5. Normalize input features
 # ==========================================
+
+print("\nCreating MinMaxScaler...")
 
 scaler = MinMaxScaler()
 
@@ -72,39 +113,83 @@ X_scaled = pd.DataFrame(
 # ==========================================
 
 processed_data = X_scaled.copy()
+
 processed_data[TARGET] = y.values
 
 
 # ==========================================
-# 7. Save scaler
+# 7. Create processed directory
 # ==========================================
 
-joblib.dump(scaler, SCALER_PATH)
-
-print(f"\nScaler saved to: {SCALER_PATH}")
+os.makedirs(
+    os.path.dirname(OUTPUT_PATH),
+    exist_ok=True
+)
 
 
 # ==========================================
-# 8. Save processed dataset
+# 8. Save scaler
 # ==========================================
+
+print("\nSaving scaler...")
+
+joblib.dump(
+    scaler,
+    SCALER_PATH
+)
+
+print(f"Scaler saved to:")
+print(SCALER_PATH)
+
+
+# ==========================================
+# 9. Save processed dataset
+# ==========================================
+
+print("\nSaving processed dataset...")
 
 processed_data.to_csv(
     OUTPUT_PATH,
     index=False
 )
 
-print(f"Processed dataset saved to: {OUTPUT_PATH}")
-print(f"Final dataset shape: {processed_data.shape}")
+print(f"Processed dataset saved to:")
+print(OUTPUT_PATH)
+
+print(
+    f"Final dataset shape: {processed_data.shape}"
+)
 
 
 # ==========================================
-# 9. Display sample
+# 10. Display sample
 # ==========================================
 
 print("\nFirst 5 processed rows:")
 print(processed_data.head())
 
-print("\nFloodProbability statistics:")
-print(processed_data[TARGET].describe())
 
-print("\nPreprocessing completed successfully!")
+# ==========================================
+# 11. FloodProbability statistics
+# ==========================================
+
+print("\nFloodProbability statistics:")
+print(
+    processed_data[TARGET].describe()
+)
+
+
+# ==========================================
+# 12. Final information
+# ==========================================
+
+print("\n==========================================")
+print("PREPROCESSING COMPLETED SUCCESSFULLY")
+print("==========================================")
+
+print(f"Input rows      : {len(data)}")
+print(f"Input features  : {X.shape[1]}")
+print(f"Output features : {X_scaled.shape[1]}")
+print(f"Target          : {TARGET}")
+print(f"Scaler          : {SCALER_PATH}")
+print(f"Processed data  : {OUTPUT_PATH}")
