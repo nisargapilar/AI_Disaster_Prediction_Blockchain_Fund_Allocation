@@ -1,559 +1,340 @@
-import os
-import json
-import zipfile
-import tempfile
+from datetime import datetime, timezone
 import asyncio
+import traceback
 
-import joblib
-import numpy as np
-from tensorflow.keras.models import load_model
+import httpx
+from sqlalchemy import select
 
+from db import async_session
+from models import EventModel, PredictionModel
 
-# ============================================================
-# FLOOD PATHS
-# ============================================================
-
-BASE_DIR = os.path.abspath(
-    os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        ".."
-    )
+from modules.flood.severity import (
+    compute_severity,
 )
 
-FLOOD_ARTIFACTS_DIR = os.path.join(
-    BASE_DIR,
-    "ml_artifacts",
-    "flood_artifacts"
+from modules.flood.config import (
+    POLL_INTERVAL_SECONDS,
+    OPEN_METEO_API_URL,
+    LOCATIONS,
 )
-
-MODEL_PATH = os.path.join(
-    FLOOD_ARTIFACTS_DIR,
-    "flood_corrected_lstm.keras"
-)
-
-SCALER_PATH = os.path.join(
-    FLOOD_ARTIFACTS_DIR,
-    "flood_scaler.pkl"
-)
-
-FEATURE_REFERENCE_PATH = os.path.join(
-    FLOOD_ARTIFACTS_DIR,
-    "flood_feature_reference.json"
-)
-
-
-# ============================================================
-# CHECK FLOOD ARTIFACTS
-# ============================================================
-
-if not os.path.exists(MODEL_PATH):
-    raise FileNotFoundError(
-        f"Flood model not found: {MODEL_PATH}"
-    )
-
-if not os.path.exists(SCALER_PATH):
-    raise FileNotFoundError(
-        f"Flood scaler not found: {SCALER_PATH}"
-    )
-
-if not os.path.exists(FEATURE_REFERENCE_PATH):
-    raise FileNotFoundError(
-        f"Flood feature reference not found: "
-        f"{FEATURE_REFERENCE_PATH}"
-    )
-
-
-# ============================================================
-# KERAS COMPATIBILITY LOADER
-# ============================================================
-
-def _load_flood_model_compatible(model_path):
-
-    def clean_config(obj):
-
-        if isinstance(obj, dict):
-
-            if obj.get("class_name") == "GlorotUniform":
-
-                old_config = obj.get(
-                    "config",
-                    {}
-                )
-
-                obj["config"] = {
-                    "seed": old_config.get(
-                        "seed",
-                        None
-                    )
-                }
-
-            for key in list(obj.keys()):
-
-                obj[key] = clean_config(
-                    obj[key]
-                )
-
-            return obj
-
-        if isinstance(obj, list):
-
-            return [
-                clean_config(item)
-                for item in obj
-            ]
-
-        return obj
-
-    fixed_model_path = os.path.join(
-        tempfile.gettempdir(),
-        "flood_corrected_lstm_fixed.keras"
-    )
-
-    with zipfile.ZipFile(
-        model_path,
-        "r"
-    ) as zin:
-
-        with zipfile.ZipFile(
-            fixed_model_path,
-            "w",
-            zipfile.ZIP_DEFLATED
-        ) as zout:
-
-            for item in zin.infolist():
-
-                data = zin.read(
-                    item.filename
-                )
-
-                if item.filename == "config.json":
-
-                    config = json.loads(
-                        data.decode("utf-8")
-                    )
-
-                    config = clean_config(
-                        config
-                    )
-
-                    data = json.dumps(
-                        config
-                    ).encode("utf-8")
-
-                zout.writestr(
-                    item,
-                    data
-                )
-
-    return load_model(
-        fixed_model_path,
-        compile=False
-    )
-
-
-# ============================================================
-# LOAD FLOOD MODEL
-# ============================================================
-
-model = _load_flood_model_compatible(
-    MODEL_PATH
-)
-
-print("Flood LSTM model loaded.")
-
-print(
-    "Flood model input shape:",
-    model.input_shape
-)
-
-
-# ============================================================
-# LOAD FLOOD SCALER
-# ============================================================
-
-scaler = joblib.load(
-    SCALER_PATH
-)
-
-print("Flood scaler loaded.")
-
-
-# ============================================================
-# LOAD FEATURE REFERENCE
-# ============================================================
-
-with open(
-    FEATURE_REFERENCE_PATH,
-    "r"
-) as f:
-
-    feature_reference = json.load(f)
-
-
-FEATURE_COLUMNS = feature_reference[
-    "features"
-]
-
-print("Flood feature reference loaded.")
-
-print(
-    "Features:",
-    FEATURE_COLUMNS
-)
-
-print(
-    "Number of Flood features:",
-    len(FEATURE_COLUMNS)
-)
-
-
-# ============================================================
-# SAFE FLOAT CONVERSION
-# ============================================================
-
-def _to_float(
-    value,
-    default=0.0
-):
-
-    try:
-
-        if value is None:
-            return default
-
-        return float(value)
-
-    except (
-        TypeError,
-        ValueError
-    ):
-
-        return default
-
-
-# ============================================================
-# PREPARE FEATURES
-# ============================================================
-
-def prepare_features(features):
-
-    values = []
-
-    for column in FEATURE_COLUMNS:
-
-        value = features.get(
-            column,
-            0.0
-        )
-
-        values.append(
-            _to_float(value)
-        )
-
-    return np.array(
-        values,
-        dtype=np.float32
-    )
-
-
-# ============================================================
-# CREATE MODEL INPUT
-# ============================================================
-
-def _create_model_input(scaled_features):
-
-    expected_shape = model.input_shape
-
-    # --------------------------------------------------------
-    # Model expects (batch, 20, 5)
-    # --------------------------------------------------------
-
-    if (
-        len(expected_shape) == 3
-        and expected_shape[1] == 20
-        and expected_shape[2] == 5
-    ):
-
-        model_input = np.repeat(
-            scaled_features.reshape(
-                1,
-                20,
-                1
-            ),
-            5,
-            axis=2
-        )
-
-        return model_input.astype(
-            np.float32
-        )
-
-    # --------------------------------------------------------
-    # Model expects (batch, 20, 1)
-    # --------------------------------------------------------
-
-    if (
-        len(expected_shape) == 3
-        and expected_shape[1] == 20
-        and expected_shape[2] == 1
-    ):
-
-        return scaled_features.reshape(
-            1,
-            20,
-            1
-        ).astype(
-            np.float32
-        )
-
-    raise ValueError(
-        f"Unsupported Flood model input shape: "
-        f"{expected_shape}"
-    )
 
 
 # ============================================================
 # FLOOD PREDICTION
 # ============================================================
 
-def predict_flood(features):
+async def predict_event(
+    rainfall: float,
+    humidity: float,
+    temperature: float,
+    lat: float,
+    lon: float,
+    region: str,
+    is_simulated: bool = False,
+):
+    """
+    Calculate flood probability and create a record
+    in the predictions table.
+
+    IMPORTANT:
+    This function does NOT release funds.
+    This function does NOT create an EventModel.
+    Predictions are stored only in the predictions table.
+    """
 
     # --------------------------------------------------------
-    # Prepare 20 flood features
+    # 1. Normalize rainfall
     # --------------------------------------------------------
 
-    feature_array = prepare_features(
-        features
-    )
-
-    expected_features = len(
-        FEATURE_COLUMNS
-    )
-
-    if len(feature_array) != expected_features:
-
-        raise ValueError(
-            f"Expected {expected_features} "
-            f"features, got {len(feature_array)}"
-        )
-
-    # --------------------------------------------------------
-    # Scale features
-    # --------------------------------------------------------
-
-    scaled_features = scaler.transform(
-        feature_array.reshape(
-            1,
-            -1
-        )
-    )
-
-    scaled_features = np.asarray(
-        scaled_features,
-        dtype=np.float32
+    rainfall_score = min(
+        max(float(rainfall) / 10.0, 0.0),
+        1.0,
     )
 
     # --------------------------------------------------------
-    # Prepare LSTM input
+    # 2. Normalize humidity
     # --------------------------------------------------------
 
-    model_input = _create_model_input(
-        scaled_features[0]
-    )
-
-    print(
-        "Flood model input shape:",
-        model_input.shape
+    humidity_score = min(
+        max(float(humidity) / 100.0, 0.0),
+        1.0,
     )
 
     # --------------------------------------------------------
-    # Predict
+    # 3. Temperature score
     # --------------------------------------------------------
 
-    prediction = model.predict(
-        model_input,
-        verbose=0
-    )
+    if temperature <= 25:
+        temperature_score = 1.0
 
-    probability = float(
-        np.asarray(
-            prediction
-        ).reshape(-1)[0]
-    )
-
-    # --------------------------------------------------------
-    # Keep probability between 0 and 1
-    # --------------------------------------------------------
-
-    probability = max(
-        0.0,
-        min(
-            probability,
-            1.0
-        )
-    )
-
-    probability_percent = (
-        probability * 100
-    )
-
-    # --------------------------------------------------------
-    # Severity
-    # --------------------------------------------------------
-
-    if probability >= 0.90:
-
-        severity = "critical"
-
-    elif probability >= 0.70:
-
-        severity = "high"
-
-    elif probability >= 0.40:
-
-        severity = "medium"
+    elif temperature <= 30:
+        temperature_score = 0.7
 
     else:
-
-        severity = "low"
-
-    return {
-
-        "flood_probability": round(
-            probability,
-            4
-        ),
-
-        "flood_probability_percent": round(
-            probability_percent,
-            2
-        ),
-
-        "severity": severity
-    }
-
-
-# ============================================================
-# PREDICT EVENT
-# Used by modules/flood/routes.py
-# ============================================================
-
-def predict_event(event):
-
-    if event is None:
-
-        raise ValueError(
-            "Flood event cannot be None."
-        )
-
-    input_data = event.input_data or {}
+        temperature_score = 0.4
 
     # --------------------------------------------------------
-    # Run flood prediction
+    # 4. Calculate flood probability
     # --------------------------------------------------------
 
-    prediction = predict_flood(
-        input_data
+    probability = (
+        rainfall_score * 0.60
+        + humidity_score * 0.25
+        + temperature_score * 0.15
     )
 
-    probability = prediction[
-        "flood_probability"
-    ]
-
-    probability_percent = prediction[
-        "flood_probability_percent"
-    ]
-
-    severity = prediction[
-        "severity"
-    ]
-
-    # --------------------------------------------------------
-    # Risk score
-    # --------------------------------------------------------
-
-    risk_score = round(
-        probability_percent,
-        2
+    probability = min(
+        max(probability, 0.0),
+        1.0,
     )
 
     # --------------------------------------------------------
-    # Return result expected by routes.py
+    # 5. Calculate severity
     # --------------------------------------------------------
 
-    return {
+    severity_tier, risk_score = compute_severity(
+        probability
+    )
 
-        "flood_probability": round(
-            probability,
-            4
-        ),
+    # --------------------------------------------------------
+    # 6. Try to match an existing flood event
+    # --------------------------------------------------------
 
-        "risk_score": risk_score,
+    matched_event_id = None
 
-        "severity_tier": severity,
+    try:
+        async with async_session() as session:
 
-        "features": {
-
-            column: _to_float(
-                input_data.get(
-                    column,
-                    0.0
+            result = await session.execute(
+                select(EventModel)
+                .where(
+                    EventModel.disaster_type == "flood",
+                    EventModel.region == region,
                 )
+                .order_by(
+                    EventModel.event_time.desc()
+                )
+                .limit(1)
             )
 
-            for column in FEATURE_COLUMNS
+            matched_event = result.scalars().first()
 
-        }
+            if matched_event:
+                matched_event_id = matched_event.event_id
+
+    except Exception:
+
+        print(
+            "Warning: Could not find matching flood event."
+        )
+
+        traceback.print_exc()
+
+    # --------------------------------------------------------
+    # 7. Prediction time
+    # --------------------------------------------------------
+
+    now = datetime.now(timezone.utc)
+
+    # --------------------------------------------------------
+    # 8. Create PredictionModel
+    # --------------------------------------------------------
+
+    prediction = PredictionModel(
+
+        disaster_type="flood",
+
+        region=region,
+
+        predicted_time=now,
+
+        input_data={
+            "rainfall": float(rainfall),
+            "humidity": float(humidity),
+            "temperature": float(temperature),
+
+            "latitude": float(lat),
+            "longitude": float(lon),
+
+            "probability": round(
+                probability,
+                4,
+            ),
+
+            "model": "rule_based_flood_model",
+
+            "based_on_event_id": (
+                str(matched_event_id)
+                if matched_event_id
+                else None
+            ),
+        },
+
+        risk_score=float(risk_score),
+
+        severity_tier=severity_tier,
+
+        matched_event_id=matched_event_id,
+
+        is_simulated=is_simulated,
+    )
+
+    # --------------------------------------------------------
+    # 9. Save prediction
+    # --------------------------------------------------------
+
+    async with async_session() as session:
+
+        try:
+
+            session.add(prediction)
+
+            await session.commit()
+
+            await session.refresh(prediction)
+
+            return prediction
+
+        except Exception:
+
+            await session.rollback()
+
+            print(
+                "========== FLOOD PREDICTION ERROR =========="
+            )
+
+            traceback.print_exc()
+
+            print(
+                "============================================="
+            )
+
+            raise
+
+
+# ============================================================
+# FETCH CURRENT WEATHER
+# ============================================================
+
+async def fetch_weather(location):
+    """
+    Fetch current weather data from Open-Meteo.
+    """
+
+    url = (
+        f"{OPEN_METEO_API_URL}"
+        f"?latitude={location['lat']}"
+        f"&longitude={location['lon']}"
+        "&current=precipitation,temperature_2m,"
+        "relative_humidity_2m"
+    )
+
+    async with httpx.AsyncClient(
+        timeout=20
+    ) as client:
+
+        response = await client.get(url)
+
+        response.raise_for_status()
+
+        data = response.json()
+
+    current = data["current"]
+
+    return {
+        "rainfall": current["precipitation"],
+        "temperature": current["temperature_2m"],
+        "humidity": current["relative_humidity_2m"],
+
+        "lat": location["lat"],
+        "lon": location["lon"],
+        "region": location["region"],
     }
 
 
 # ============================================================
 # FLOOD PREDICTION POLLING
-# Used by main.py
 # ============================================================
 
 async def start_prediction_polling():
+    """
+    Continuously monitor configured locations
+    and create forecast records.
 
-    print(
-        "Flood prediction polling started."
-    )
+    These records go into the predictions table.
+    They do NOT go into the events table.
+    """
 
     while True:
 
-        try:
+        print(
+            "========================================"
+        )
 
-            # Prediction is currently triggered
-            # through the prediction endpoint.
+        print(
+            "Flood prediction polling running..."
+        )
 
-            await asyncio.sleep(
-                3600
-            )
+        print(
+            "========================================"
+        )
 
-        except asyncio.CancelledError:
+        for location in LOCATIONS:
 
-            print(
-                "Flood prediction polling stopped."
-            )
+            try:
 
-            raise
+                weather = await fetch_weather(
+                    location
+                )
 
-        except Exception as e:
+                prediction = await predict_event(
 
-            print(
-                "Flood prediction polling error:",
-                e
-            )
+                    rainfall=weather["rainfall"],
 
-            await asyncio.sleep(
-                60
-            )
+                    humidity=weather["humidity"],
 
+                    temperature=weather["temperature"],
 
-# ============================================================
-# READY
-# ============================================================
+                    lat=weather["lat"],
 
-print(
-    "Flood prediction module ready."
-)
+                    lon=weather["lon"],
+
+                    region=weather["region"],
+
+                    is_simulated=False,
+                )
+
+                probability = (
+                    prediction.input_data.get(
+                        "probability",
+                        0.0,
+                    )
+                )
+
+                print(
+                    f"Predicted {weather['region']} | "
+                    f"Rain={weather['rainfall']} mm | "
+                    f"Humidity={weather['humidity']}% | "
+                    f"Temp={weather['temperature']}°C | "
+                    f"Probability={probability} | "
+                    f"Severity={prediction.severity_tier} | "
+                    f"Risk={prediction.risk_score}"
+                )
+
+            except Exception:
+
+                print(
+                    f"Failed flood prediction for "
+                    f"{location['region']}"
+                )
+
+                traceback.print_exc()
+
+        print(
+            f"Waiting {POLL_INTERVAL_SECONDS} seconds "
+            "before next flood prediction..."
+        )
+
+        await asyncio.sleep(
+            POLL_INTERVAL_SECONDS
+        )

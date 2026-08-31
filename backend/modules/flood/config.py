@@ -1,13 +1,13 @@
-
-
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
-
-
-OPEN_METEO_API_URL = os.getenv("OPEN_METEO_API_URL")
+# Open-Meteo API
+OPEN_METEO_API_URL = os.getenv(
+    "OPEN_METEO_API_URL",
+    "https://api.open-meteo.com/v1/forecast"
+)
 
 # Locations to monitor
 LOCATIONS = [

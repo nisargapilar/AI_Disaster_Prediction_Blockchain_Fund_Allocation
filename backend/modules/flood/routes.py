@@ -1,9 +1,8 @@
 from fastapi import APIRouter
 from sqlalchemy import select
-from datetime import datetime, timezone
 
 from db import async_session
-from models import EventModel
+from models import EventModel, PredictionModel
 
 from modules.flood.prediction import predict_event
 
@@ -15,24 +14,46 @@ router = APIRouter(
 
 
 # ============================================================
-# SERIALIZE EVENT
+# SERIALIZE DETECTED FLOOD EVENT
 # ============================================================
 
-def serialize(row):
+def serialize_event(row):
+
     return {
-        "event_id": str(row.event_id),
+        "event_id": str(
+            row.event_id
+        ),
+
         "disaster_type": row.disaster_type,
+
         "source": row.source,
-        "event_time": row.event_time.isoformat(),
+
+        "event_time": (
+            row.event_time.isoformat()
+            if row.event_time
+            else None
+        ),
+
         "location": {
             "lat": row.lat,
             "lon": row.lon,
             "region": row.region,
         },
-        "input_data": row.input_data,
+
+        "input_data": (
+            row.input_data
+            or {}
+        ),
+
         "risk_score": row.risk_score,
-        "severity_tier": row.severity_tier,
-        "fund_status": row.fund_status,
+
+        "severity_tier": (
+            row.severity_tier
+        ),
+
+        "fund_status": (
+            row.fund_status
+        ),
     }
 
 
@@ -42,7 +63,7 @@ def serialize(row):
 
 @router.get(
     "/detected-flood-events",
-    summary="Detected Flood Events"
+    summary="Detected Flood Events",
 )
 async def get_detected_flood_events():
 
@@ -51,37 +72,86 @@ async def get_detected_flood_events():
         result = await session.execute(
 
             select(EventModel)
+
             .where(
                 EventModel.disaster_type == "flood",
-                EventModel.source != "prediction"
+
+                EventModel.source != "prediction",
             )
+
             .order_by(
                 EventModel.event_time.desc()
             )
-            .limit(50)
 
+            .limit(50)
         )
 
+        rows = result.scalars().all()
+
         return [
-            serialize(row)
-            for row in result.scalars().all()
+            serialize_event(row)
+            for row in rows
         ]
 
 
 # ============================================================
-# SIMULATE FLOOD DETECTION
+# SERIALIZE FLOOD PREDICTION
 # ============================================================
 
-@router.post(
-    "/simulate-detection",
-    summary="Simulate Detection"
-)
-async def simulate_detection():
+def serialize_prediction(row):
+
+    probability = 0.0
+
+    if row.input_data:
+
+        probability = row.input_data.get(
+            "probability",
+            0.0,
+        )
 
     return {
-        "message": "Flood detection simulation endpoint",
-        "disaster_type": "flood",
-        "status": "success"
+
+        "prediction_id": str(
+            row.prediction_id
+        ),
+
+        "disaster_type": (
+            row.disaster_type
+        ),
+
+        "region": row.region,
+
+        "predicted_time": (
+            row.predicted_time.isoformat()
+            if row.predicted_time
+            else None
+        ),
+
+        "input_data": (
+            row.input_data
+            or {}
+        ),
+
+        "risk_score": (
+            row.risk_score
+        ),
+
+        "severity_tier": (
+            row.severity_tier
+        ),
+
+        "matched_event_id": (
+            str(row.matched_event_id)
+            if row.matched_event_id
+            else None
+        ),
+
+        "is_simulated": (
+            row.is_simulated
+        ),
+
+        # Convenient field for frontend
+        "probability": probability,
     }
 
 
@@ -91,7 +161,7 @@ async def simulate_detection():
 
 @router.get(
     "/predicted-flood-events",
-    summary="Predicted Flood Events"
+    summary="Predicted Flood Events",
 )
 async def get_predicted_flood_events():
 
@@ -99,21 +169,25 @@ async def get_predicted_flood_events():
 
         result = await session.execute(
 
-            select(EventModel)
-            .where(
-                EventModel.disaster_type == "flood",
-                EventModel.source == "prediction"
-            )
-            .order_by(
-                EventModel.event_time.desc()
-            )
-            .limit(50)
+            select(PredictionModel)
 
+            .where(
+                PredictionModel.disaster_type
+                == "flood"
+            )
+
+            .order_by(
+                PredictionModel.predicted_time.desc()
+            )
+
+            .limit(50)
         )
 
+        rows = result.scalars().all()
+
         return [
-            serialize(row)
-            for row in result.scalars().all()
+            serialize_prediction(row)
+            for row in rows
         ]
 
 
@@ -123,32 +197,34 @@ async def get_predicted_flood_events():
 
 @router.post(
     "/simulate-prediction",
-    summary="Simulate Prediction"
+    summary="Simulate Flood Prediction",
 )
 async def simulate_prediction(
 
     rainfall: float,
-    humidity: float,
-    temperature: float,
-    lat: float,
-    lon: float,
-    region: str,
 
+    humidity: float,
+
+    temperature: float,
+
+    lat: float,
+
+    lon: float,
+
+    region: str,
 ):
 
     # --------------------------------------------------------
-    # Create temporary event for prediction
+    # CREATE PREDICTION
     # --------------------------------------------------------
 
-    event = EventModel(
+    prediction = await predict_event(
 
-        disaster_type="flood",
+        rainfall=rainfall,
 
-        source="prediction",
+        humidity=humidity,
 
-        event_time=datetime.now(
-            timezone.utc
-        ),
+        temperature=temperature,
 
         lat=lat,
 
@@ -156,45 +232,21 @@ async def simulate_prediction(
 
         region=region,
 
-        input_data={
-
-            "MonsoonIntensity": rainfall,
-
-            "TopographyDrainage": 0.0,
-            "RiverManagement": 0.0,
-            "Deforestation": 0.0,
-            "Urbanization": 0.0,
-            "ClimateChange": 0.0,
-            "DamsQuality": 0.0,
-            "Siltation": 0.0,
-            "AgriculturalPractices": 0.0,
-            "Encroachments": 0.0,
-            "IneffectiveDisasterPreparedness": 0.0,
-            "DrainageSystems": 0.0,
-            "CoastalVulnerability": 0.0,
-            "Landslides": 0.0,
-            "Watersheds": 0.0,
-            "DeterioratingInfrastructure": 0.0,
-            "PopulationScore": 0.0,
-            "WetlandLoss": 0.0,
-            "InadequatePlanning": 0.0,
-            "PoliticalFactors": 0.0,
-
-            "rainfall": rainfall,
-            "humidity": humidity,
-            "temperature": temperature,
-            "lat": lat,
-            "lon": lon,
-
-        },
-
+        is_simulated=True,
     )
 
     # --------------------------------------------------------
-    # RUN FLOOD LSTM
+    # GET PROBABILITY
     # --------------------------------------------------------
 
-    result = predict_event(event)
+    probability = 0.0
+
+    if prediction.input_data:
+
+        probability = prediction.input_data.get(
+            "probability",
+            0.0,
+        )
 
     # --------------------------------------------------------
     # RETURN RESULT
@@ -202,26 +254,82 @@ async def simulate_prediction(
 
     return {
 
+        "prediction_id": str(
+            prediction.prediction_id
+        ),
+
+        "disaster_type": (
+            prediction.disaster_type
+        ),
+
+        "region": (
+            prediction.region
+        ),
+
+        "predicted_time": (
+            prediction.predicted_time.isoformat()
+            if prediction.predicted_time
+            else None
+        ),
+
+        "flood_probability": probability,
+
+        "risk_score": (
+            prediction.risk_score
+        ),
+
+        "severity_tier": (
+            prediction.severity_tier
+        ),
+
+        "matched_event_id": (
+            str(prediction.matched_event_id)
+            if prediction.matched_event_id
+            else None
+        ),
+
+        "is_simulated": (
+            prediction.is_simulated
+        ),
+
+        "model": (
+            "rule_based_flood_model"
+        ),
+
+        "features": {
+
+            "rainfall": rainfall,
+
+            "humidity": humidity,
+
+            "temperature": temperature,
+
+            "latitude": lat,
+
+            "longitude": lon,
+
+            "region": region,
+        },
+    }
+
+
+# ============================================================
+# SIMULATE FLOOD DETECTION
+# ============================================================
+
+@router.post(
+    "/simulate-detection",
+    summary="Simulate Flood Detection",
+)
+async def simulate_detection():
+
+    return {
+
+        "message": (
+            "Flood detection simulation endpoint"
+        ),
+
         "disaster_type": "flood",
 
-        "region": region,
-
-        "latitude": lat,
-
-        "longitude": lon,
-
-        "flood_probability":
-            result["flood_probability"],
-
-        "risk_score":
-            result["risk_score"],
-
-        "severity_tier":
-            result["severity_tier"],
-
-        "model": "LSTM",
-
-        "features":
-            result["features"],
-
+        "status": "success",
     }

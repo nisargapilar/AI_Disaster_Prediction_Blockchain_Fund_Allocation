@@ -27,7 +27,7 @@ export function fetchPredictedFloods() {
 }
 
 // ============================================================
-// LAT/LON
+// LAT / LON PROJECTION
 // ============================================================
 
 export function projectLatLon(lat, lon) {
@@ -45,7 +45,9 @@ export function projectLatLon(lat, lon) {
 // ============================================================
 
 function fmtTime(iso) {
-  if (!iso) return "N/A";
+  if (!iso) {
+    return "N/A";
+  }
 
   const date = new Date(iso);
 
@@ -87,30 +89,31 @@ export function normalizeFloodDetection(raw) {
       "Unknown Region",
 
     rainfall:
-      raw.input_data?.rainfall,
+      raw.input_data?.rainfall ?? null,
 
     riverLevel:
-      raw.input_data?.river_level,
+      raw.input_data?.river_level ?? null,
 
     humidity:
-      raw.input_data?.humidity,
+      raw.input_data?.humidity ?? null,
 
     temperature:
-      raw.input_data?.temperature,
+      raw.input_data?.temperature ?? null,
 
     probability:
-      raw.input_data?.probability,
+      raw.input_data?.probability ?? null,
 
-    coords: hasPosition
-      ? `${lat.toFixed(3)}°, ${lon.toFixed(3)}°`
-      : "N/A",
+    coords:
+      hasPosition
+        ? `${lat.toFixed(3)}°, ${lon.toFixed(3)}°`
+        : "N/A",
 
     severity:
       raw.severity_tier ||
       "low",
 
     riskScore:
-      raw.risk_score,
+      raw.risk_score ?? null,
 
     riskPct:
       raw.risk_score != null
@@ -120,10 +123,10 @@ export function normalizeFloodDetection(raw) {
         : null,
 
     fundStatus:
-      raw.fund_status,
+      raw.fund_status ?? null,
 
     source:
-      raw.source,
+      raw.source ?? null,
 
     detected:
       fmtTime(raw.event_time),
@@ -131,10 +134,14 @@ export function normalizeFloodDetection(raw) {
     hasPosition,
 
     rawLat:
-      hasPosition ? lat : null,
+      hasPosition
+        ? lat
+        : null,
 
     rawLon:
-      hasPosition ? lon : null,
+      hasPosition
+        ? lon
+        : null,
 
     x:
       hasPosition
@@ -150,6 +157,8 @@ export function normalizeFloodDetection(raw) {
 
 // ============================================================
 // NORMALIZE FLOOD PREDICTIONS
+// IMPORTANT:
+// This matches PredictionModel /predicted-flood-events
 // ============================================================
 
 export function normalizeFloodPredictions(rawList) {
@@ -163,38 +172,183 @@ export function normalizeFloodPredictions(rawList) {
         new Date(b.predicted_time) -
         new Date(a.predicted_time)
     )
-    .map((p) => ({
-      id: p.prediction_id,
+    .map((p) => {
 
-      region:
+      // ======================================================
+      // PredictionModel stores coordinates inside input_data
+      // ======================================================
+
+      const lat = Number(
+        p.input_data?.latitude
+      );
+
+      const lon = Number(
+        p.input_data?.longitude
+      );
+
+      const hasPosition =
+        Number.isFinite(lat) &&
+        Number.isFinite(lon) &&
+        lat >= -90 &&
+        lat <= 90 &&
+        lon >= -180 &&
+        lon <= 180;
+
+      // ======================================================
+      // REGION COMES DIRECTLY FROM PredictionModel
+      // ======================================================
+
+      const region =
         p.region ||
-        "Unknown Region",
+        p.input_data?.region ||
+        "Unknown Region";
 
-      riskScore:
-        p.risk_score,
+      // ======================================================
+      // RETURN FRONTEND FORMAT
+      // ======================================================
 
-      riskPct:
-        p.risk_score != null
-          ? Math.round(
-              Number(p.risk_score) * 100
-            )
-          : null,
+      return {
+        // PredictionModel
+        id:
+          p.prediction_id,
 
-      severity:
-        p.severity_tier ||
-        "low",
+        predictionId:
+          p.prediction_id,
 
-      generated:
-        fmtTime(p.predicted_time),
+        disasterType:
+          p.disaster_type,
 
-      sequenceLength:
-        p.input_data?.sequence_length,
+        // Exact region from backend
+        region: region,
 
-      basedOnCount:
-        p.input_data?.based_on_event_ids
-          ?.length ?? 0,
+        name: region,
 
-      isSimulated:
-        p.is_simulated,
-    }));
+        // PredictionModel uses predicted_time
+        generated:
+          fmtTime(
+            p.predicted_time
+          ),
+
+        predictedTime:
+          p.predicted_time,
+
+        // Risk
+        riskScore:
+          p.risk_score ?? null,
+
+        riskPct:
+          p.risk_score != null
+            ? Math.round(
+                Number(p.risk_score) * 100
+              )
+            : null,
+
+        severity:
+          p.severity_tier ||
+          "low",
+
+        // ====================================================
+        // INPUT DATA
+        // ====================================================
+
+        rainfall:
+          p.input_data?.rainfall ??
+          null,
+
+        humidity:
+          p.input_data?.humidity ??
+          null,
+
+        temperature:
+          p.input_data?.temperature ??
+          null,
+
+        probability:
+          p.input_data?.probability ??
+          null,
+
+        // Probability as percentage
+        probabilityPct:
+          p.input_data?.probability != null
+            ? Math.round(
+                Number(
+                  p.input_data.probability
+                ) * 100
+              )
+            : null,
+
+        // ====================================================
+        // COORDINATES
+        // ====================================================
+
+        rawLat:
+          hasPosition
+            ? lat
+            : null,
+
+        rawLon:
+          hasPosition
+            ? lon
+            : null,
+
+        hasPosition,
+
+        x:
+          hasPosition
+            ? projectLatLon(
+                lat,
+                lon
+              ).x
+            : null,
+
+        y:
+          hasPosition
+            ? projectLatLon(
+                lat,
+                lon
+              ).y
+            : null,
+
+        coords:
+          hasPosition
+            ? `${lat.toFixed(3)}°, ${lon.toFixed(3)}°`
+            : "N/A",
+
+        // ====================================================
+        // MATCHED EVENT
+        // ====================================================
+
+        matchedEventId:
+          p.matched_event_id ??
+          null,
+
+        basedOnCount:
+          p.matched_event_id
+            ? 1
+            : 0,
+
+        // ====================================================
+        // SIMULATION
+        // ====================================================
+
+        isSimulated:
+          Boolean(
+            p.is_simulated
+          ),
+
+        // ====================================================
+        // OTHER
+        // ====================================================
+
+        source:
+          "prediction",
+
+        fundStatus:
+          "not_applicable",
+
+        model:
+          p.input_data?.model ||
+          "rule_based_flood_model",
+      };
+    });
 }
