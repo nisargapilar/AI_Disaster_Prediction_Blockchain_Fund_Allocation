@@ -74,4 +74,4 @@ FUND_ELIGIBLE_TIER = "high"
 # 3600 seconds = 1 hour
 # --------------------------------------------------
 
-POLL_INTERVAL_SECONDS = 3600
+POLL_INTERVAL_SECONDS = 60

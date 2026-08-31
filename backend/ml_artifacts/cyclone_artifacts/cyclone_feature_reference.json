@@ -1,0 +1,28 @@
+{
+    "disaster_type": "cyclone",
+    "model": "CNN-LSTM",
+    "model_file": "cyclone_cnn_lstm.keras",
+    "scaler_file": "cyclone_scaler.pkl",
+    "sequence_length": 12,
+    "features": [
+        "LAT",
+        "LON",
+        "WMO_WIND",
+        "WMO_PRES",
+        "STORM_SPEED",
+        "STORM_DIR",
+        "DIST2LAND",
+        "previous_wind",
+        "wind_change",
+        "year",
+        "month",
+        "day",
+        "hour"
+    ],
+    "target": "intensifies",
+    "target_description": {
+        "0": "next observation has same or lower wind",
+        "1": "next observation has higher wind"
+    },
+    "prediction_threshold": 0.5
+}

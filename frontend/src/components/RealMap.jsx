@@ -10,7 +10,6 @@ import { useEffect } from "react";
 
 // ============================================================
 // SEVERITY COLORS
-// Works for Earthquake, Flood and Forest Fire
 // ============================================================
 
 const SEV_COLOR = {
@@ -42,32 +41,35 @@ function makeIcon(severity, mode, active) {
     SEV_COLOR[normalizedSeverity] ||
     SEV_COLOR.low;
 
-  const dashed = mode === "prediction";
+  const isPrediction =
+    mode === "prediction";
 
   const ring = active
-    ? "box-shadow:0 0 0 5px rgba(255,255,255,0.15);"
-    : "";
+    ? "box-shadow:0 0 0 5px rgba(255,255,255,0.18),0 0 12px ${color};"
+    : `box-shadow:0 0 8px ${color};`;
 
-  const border = dashed
-    ? "border:2px dashed rgba(255,255,255,0.85);"
-    : "border:2px solid rgba(255,255,255,0.5);";
+  const border = isPrediction
+    ? "border:2px dashed rgba(255,255,255,0.9);"
+    : "border:2px solid rgba(255,255,255,0.65);";
 
   return L.divIcon({
     className: "",
     html: `
       <div
         style="
-          width:14px;
-          height:14px;
+          width:16px;
+          height:16px;
           border-radius:50%;
           background:${color};
           ${border}
           ${ring}
+          cursor:pointer;
         "
       ></div>
     `,
-    iconSize: [14, 14],
-    iconAnchor: [7, 7],
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+    popupAnchor: [0, -8],
   });
 }
 
@@ -79,16 +81,50 @@ function FlyToSelected({ point }) {
   const map = useMap();
 
   useEffect(() => {
-    if (point) {
-      map.flyTo(
-        [point.lat, point.lon],
-        Math.max(map.getZoom(), 4),
-        {
-          duration: 0.6,
-        }
-      );
-    }
+    if (!point) return;
+
+    map.flyTo(
+      [point.lat, point.lon],
+      Math.max(map.getZoom(), 4),
+      {
+        duration: 0.6,
+      }
+    );
   }, [point, map]);
+
+  return null;
+}
+
+// ============================================================
+// FIT ALL POINTS ON MAP
+// ============================================================
+
+function FitAllPoints({ points }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!points || points.length === 0) return;
+
+    if (points.length === 1) {
+      map.setView(
+        [points[0].lat, points[0].lon],
+        5
+      );
+      return;
+    }
+
+    const bounds = L.latLngBounds(
+      points.map((p) => [
+        p.lat,
+        p.lon,
+      ])
+    );
+
+    map.fitBounds(bounds, {
+      padding: [40, 40],
+      maxZoom: 6,
+    });
+  }, [points, map]);
 
   return null;
 }
@@ -103,17 +139,61 @@ export default function RealMap({
   onSelect,
   mode = "detection",
 }) {
-  const selectedPoint = points.find(
-    (p) => p.id === selectedId
+  // ----------------------------------------------------------
+  // VALID POINTS
+  // ----------------------------------------------------------
+
+  const validPoints = points.filter(
+    (p) =>
+      typeof p.lat === "number" &&
+      typeof p.lon === "number" &&
+      Number.isFinite(p.lat) &&
+      Number.isFinite(p.lon)
   );
+
+  // ----------------------------------------------------------
+  // REMOVE DUPLICATE REGION MARKERS
+  //
+  // If backend sends many records for Digha,
+  // only the latest/first point for Digha is shown.
+  // ----------------------------------------------------------
+
+  const uniquePoints = [];
+
+  const seenRegions = new Set();
+
+  for (const point of validPoints) {
+    const regionKey = String(
+      point.region ||
+        point.name ||
+        `${point.lat}_${point.lon}`
+    ).toLowerCase();
+
+    if (seenRegions.has(regionKey)) {
+      continue;
+    }
+
+    seenRegions.add(regionKey);
+    uniquePoints.push(point);
+  }
+
+  // ----------------------------------------------------------
+  // SELECTED POINT
+  // ----------------------------------------------------------
+
+  const selectedPoint =
+    uniquePoints.find(
+      (p) => p.id === selectedId
+    );
 
   return (
     <div className="relative w-full aspect-[16/10] rounded overflow-hidden border border-white/5">
 
       <MapContainer
-        center={[20, 0]}
-        zoom={2}
+        center={[20, 78]}
+        zoom={4}
         minZoom={3}
+        maxZoom={12}
         maxBounds={WORLD_BOUNDS}
         maxBoundsViscosity={1.0}
         style={{
@@ -135,78 +215,144 @@ export default function RealMap({
         />
 
         {/* ==================================================
-            EARTHQUAKE / FLOOD / FOREST FIRE MARKERS
+            ALL MARKERS
         ================================================== */}
 
-        {points
-          .filter(
-            (p) =>
-              typeof p.lat === "number" &&
-              typeof p.lon === "number"
-          )
-          .map((p) => (
-            <Marker
-              key={p.id}
-              position={[
-                p.lat,
-                p.lon,
-              ]}
-              icon={makeIcon(
-                p.severity,
-                mode,
-                p.id === selectedId
-              )}
-              eventHandlers={{
-                click: () => {
-                  if (onSelect) {
-                    onSelect(p.id);
-                  }
-                },
-              }}
-            >
+        {uniquePoints.map((p) => (
+          <Marker
+            key={`${p.id}-${p.region}`}
+            position={[
+              p.lat,
+              p.lon,
+            ]}
+            icon={makeIcon(
+              p.severity,
+              mode,
+              p.id === selectedId
+            )}
+            eventHandlers={{
+              click: () => {
+                if (onSelect) {
+                  onSelect(p.id);
+                }
+              },
+            }}
+          >
 
-              <Popup>
-                <div
+            <Popup>
+
+              <div
+                style={{
+                  fontFamily:
+                    "monospace",
+                  fontSize: "12px",
+                  lineHeight: "1.6",
+                  minWidth: "170px",
+                }}
+              >
+
+                <strong
                   style={{
-                    fontFamily: "monospace",
-                    fontSize: "12px",
+                    fontSize: "14px",
                   }}
                 >
-
-                  <strong>
-                    {p.name ||
-                      p.region ||
-                      p.id}
-                  </strong>
-
-                  <br />
-
-                  Severity:{" "}
-                  {p.severity ||
+                  {p.name ||
+                    p.region ||
                     "Unknown"}
+                </strong>
 
-                  <br />
+                <br />
 
+                <span>
+                  Severity:{" "}
+                  <b>
+                    {p.severity ||
+                      "Unknown"}
+                  </b>
+                </span>
+
+                <br />
+
+                <span>
+                  Risk:{" "}
+                  {p.riskPct !==
+                  undefined
+                    ? `${p.riskPct}%`
+                    : p.riskScore !==
+                        undefined
+                      ? p.riskScore
+                      : "—"}
+                </span>
+
+                <br />
+
+                <span>
                   Latitude:{" "}
                   {Number(
                     p.lat
-                  ).toFixed(3)}
+                  ).toFixed(4)}
+                </span>
 
-                  <br />
+                <br />
 
+                <span>
                   Longitude:{" "}
                   {Number(
                     p.lon
-                  ).toFixed(3)}
+                  ).toFixed(4)}
+                </span>
 
-                </div>
-              </Popup>
+                {p.wind !==
+                  undefined &&
+                  p.wind !== null && (
+                    <>
+                      <br />
+                      <span>
+                        Wind:{" "}
+                        {p.wind}
+                      </span>
+                    </>
+                  )}
 
-            </Marker>
-          ))}
+                {p.pressure !==
+                  undefined &&
+                  p.pressure !== null && (
+                    <>
+                      <br />
+                      <span>
+                        Pressure:{" "}
+                        {p.pressure}
+                      </span>
+                    </>
+                  )}
+
+                {p.source && (
+                  <>
+                    <br />
+                    <span>
+                      Source:{" "}
+                      {p.source}
+                    </span>
+                  </>
+                )}
+
+              </div>
+
+            </Popup>
+
+          </Marker>
+        ))}
 
         {/* ==================================================
-            SELECTED MARKER
+            FIT ALL DETECTION/PREDICTION POINTS
+        ================================================== */}
+
+        <FitAllPoints
+          points={uniquePoints}
+        />
+
+        {/* ==================================================
+            MOVE TO SELECTED POINT
         ================================================== */}
 
         <FlyToSelected
@@ -219,7 +365,7 @@ export default function RealMap({
           SEVERITY LEGEND
       ==================================================== */}
 
-      <div className="pointer-events-none absolute bottom-2 left-3 flex items-center gap-3 text-[9px] font-mono uppercase tracking-widest text-slate-400 bg-black/50 px-2 py-1 rounded z-[1000]">
+      <div className="pointer-events-none absolute bottom-2 left-3 flex items-center gap-3 text-[9px] font-mono uppercase tracking-widest text-slate-400 bg-black/60 px-2 py-1 rounded z-[1000]">
 
         <span className="flex items-center gap-1">
           <span
@@ -268,10 +414,23 @@ export default function RealMap({
       </div>
 
       {/* ====================================================
+          MARKER COUNT
+      ==================================================== */}
+
+      <div className="pointer-events-none absolute top-2 left-3 text-[9px] font-mono uppercase tracking-widest text-slate-300 bg-black/60 px-2 py-1 rounded z-[1000]">
+
+        {uniquePoints.length} LOCATION
+        {uniquePoints.length === 1
+          ? ""
+          : "S"}
+
+      </div>
+
+      {/* ====================================================
           MODE INDICATOR
       ==================================================== */}
 
-      <div className="pointer-events-none absolute top-2 right-3 text-[9px] font-mono uppercase tracking-widest text-slate-400 bg-black/50 px-2 py-1 rounded z-[1000]">
+      <div className="pointer-events-none absolute top-2 right-3 text-[9px] font-mono uppercase tracking-widest text-slate-400 bg-black/60 px-2 py-1 rounded z-[1000]">
 
         {mode === "detection"
           ? "SOLID // VERIFIED FEED"

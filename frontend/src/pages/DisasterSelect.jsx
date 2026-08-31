@@ -1,6 +1,10 @@
 
 import { Mountain, Wind, Waves, Flame } from "lucide-react";
-import { useTheme, surface, accentText } from "../theme/ThemeContext";
+import {
+  useTheme,
+  surface,
+  accentText,
+} from "../theme/ThemeContext";
 import { Badge } from "../components/ui";
 
 const DISASTERS = [
@@ -14,7 +18,7 @@ const DISASTERS = [
     id: "cyclone",
     label: "Cyclone",
     icon: Wind,
-    active: false,
+    active: true,
   },
   {
     id: "flood",
@@ -34,12 +38,23 @@ export default function DisasterSelect({ mode, setView }) {
   const { theme } = useTheme();
   const s = surface(theme);
 
-  const accent = mode === "detection" ? "cyan" : "violet";
+  // Detection = cyan
+  // Prediction = violet
+  const accent =
+    mode === "detection"
+      ? "cyan"
+      : "violet";
+
+  // ============================================================
+  // NAVIGATION
+  // ============================================================
 
   const goto = (disasterId) => {
-    // =========================
+
+    // ==========================================================
     // EARTHQUAKE
-    // =========================
+    // ==========================================================
+
     if (disasterId === "earthquake") {
       setView(
         mode === "detection"
@@ -49,9 +64,23 @@ export default function DisasterSelect({ mode, setView }) {
       return;
     }
 
-    // =========================
+    // ==========================================================
+    // CYCLONE
+    // ==========================================================
+
+    if (disasterId === "cyclone") {
+      setView(
+        mode === "detection"
+          ? "cyclone-detection"
+          : "cyclone-prediction"
+      );
+      return;
+    }
+
+    // ==========================================================
     // FLOOD
-    // =========================
+    // ==========================================================
+
     if (disasterId === "flood") {
       setView(
         mode === "detection"
@@ -61,9 +90,10 @@ export default function DisasterSelect({ mode, setView }) {
       return;
     }
 
-    // =========================
+    // ==========================================================
     // FOREST FIRE
-    // =========================
+    // ==========================================================
+
     if (disasterId === "forest_fire") {
       setView(
         mode === "detection"
@@ -74,9 +104,17 @@ export default function DisasterSelect({ mode, setView }) {
     }
   };
 
+  // ============================================================
+  // PAGE
+  // ============================================================
+
   return (
     <div className="p-5 max-w-4xl mx-auto">
-      {/* HEADER */}
+
+      {/* ======================================================
+          HEADER
+      ====================================================== */}
+
       <div
         className={`text-xs font-mono uppercase tracking-widest mb-1 ${accentText(
           theme,
@@ -88,14 +126,20 @@ export default function DisasterSelect({ mode, setView }) {
           : "Prediction // Select Disaster Module"}
       </div>
 
-      <div className={`text-sm mb-6 ${s.textSecondary}`}>
+      <div
+        className={`text-sm mb-6 ${s.textSecondary}`}
+      >
         {mode === "detection"
           ? "Confirmed real events per module. Selecting a module opens its live detection map."
           : "Early-warning forecasts per module. Selecting a module opens its risk-prediction map."}
       </div>
 
-      {/* DISASTER CARDS */}
+      {/* ======================================================
+          DISASTER CARDS
+      ====================================================== */}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+
         {DISASTERS.map((d) => {
           const Icon = d.icon;
 
@@ -114,23 +158,36 @@ export default function DisasterSelect({ mode, setView }) {
                   : `${s.panel} ${s.borderFaint} opacity-40 cursor-not-allowed`
               }`}
             >
-              {/* ICON */}
+
+              {/* ==================================================
+                  ICON
+              ================================================== */}
+
               <Icon
                 className={`w-7 h-7 ${
                   d.active
-                    ? accentText(theme, accent)
+                    ? accentText(
+                        theme,
+                        accent
+                      )
                     : s.textFaint
                 }`}
               />
 
-              {/* NAME */}
+              {/* ==================================================
+                  NAME
+              ================================================== */}
+
               <span
                 className={`text-sm font-mono uppercase tracking-widest ${s.textBody}`}
               >
                 {d.label}
               </span>
 
-              {/* STATUS */}
+              {/* ==================================================
+                  STATUS
+              ================================================== */}
+
               <Badge
                 className={
                   d.active
@@ -140,12 +197,17 @@ export default function DisasterSelect({ mode, setView }) {
                     : `${s.tint} ${s.textFaint} border ${s.borderSoft}`
                 }
               >
-                {d.active ? "Live" : "Coming soon"}
+                {d.active
+                  ? "Live"
+                  : "Coming soon"}
               </Badge>
+
             </button>
           );
         })}
+
       </div>
+
     </div>
   );
 }

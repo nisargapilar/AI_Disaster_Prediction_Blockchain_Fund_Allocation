@@ -12,11 +12,13 @@ import DisasterSelect from "./pages/DisasterSelect";
 import EarthquakeDetection from "./pages/detection/EarthquakeDetection";
 import FloodDetection from "./pages/detection/FloodDetection";
 import ForestFireDetection from "./pages/detection/ForestFireDetection";
+import CycloneDetection from "./pages/detection/CycloneDetection";
 
 // Prediction pages
 import EarthquakePrediction from "./pages/prediction/EarthquakePrediction";
 import FloodPrediction from "./pages/prediction/FloodPrediction";
 import ForestFirePrediction from "./pages/prediction/ForestFirePrediction";
+import CyclonePrediction from "./pages/prediction/CyclonePrediction";
 
 // Funds
 import FundsPlaceholder from "./pages/funds/FundsPlaceholder";
@@ -82,6 +84,13 @@ function Shell() {
   }
 
   // ============================================================
+  // CYCLONE DETECTION
+  // ============================================================
+  else if (view === "cyclone-detection") {
+    page = <CycloneDetection setView={setView} />;
+  }
+
+  // ============================================================
   // EARTHQUAKE PREDICTION
   // ============================================================
   else if (view === "eq-prediction") {
@@ -100,6 +109,13 @@ function Shell() {
   // ============================================================
   else if (view === "forest-fire-prediction") {
     page = <ForestFirePrediction setView={setView} />;
+  }
+
+  // ============================================================
+  // CYCLONE PREDICTION
+  // ============================================================
+  else if (view === "cyclone-prediction") {
+    page = <CyclonePrediction setView={setView} />;
   }
 
   // ============================================================
