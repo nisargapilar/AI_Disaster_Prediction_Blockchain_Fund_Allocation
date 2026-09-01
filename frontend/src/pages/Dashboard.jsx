@@ -34,7 +34,7 @@ export default function Dashboard({ setView }) {
       label: "Funds Pending",
       value: events.filter((e) => e.fundStatus === "pending").length,
     },
-    { label: "Modules Live", value: 2 },
+    { label: "Modules Live", value: 4 },
   ];
 
   return (
