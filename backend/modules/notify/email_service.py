@@ -53,3 +53,13 @@ async def send_daily_digest(email: str, unsubscribe_token: str, summary_lines: l
         + f"\n\nUnsubscribe: {unsub_link}"
     )
     _send(email, "Your daily disaster monitoring digest", body)
+
+async def send_unsubscribe_link(email: str, unsubscribe_token: str):
+    link = f"{BASE_URL}/subscribe/unsubscribe/{unsubscribe_token}"
+    body = (
+        f"You requested your unsubscribe link for disaster alerts.\n\n"
+        f"Click to unsubscribe: {link}\n\n"
+        f"If you didn't request this, you can safely ignore this email — "
+        f"no action will be taken."
+    )
+    _send(email, "Your disaster alert unsubscribe link", body)
