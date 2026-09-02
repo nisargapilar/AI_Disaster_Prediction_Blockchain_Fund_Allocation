@@ -20,8 +20,7 @@ import ForestFirePrediction from "./pages/prediction/ForestFirePrediction";
 import CyclonePrediction from "./pages/prediction/CyclonePrediction";
 
 // Alerts
-import Subscribe from "./pages/Subscribe";
-
+import Subscribe from "./pages/Subscribe.jsx";
 // Funds
 import FundsPlaceholder from "./pages/funds/FundsPlaceholder";
 

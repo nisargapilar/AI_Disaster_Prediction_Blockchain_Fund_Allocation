@@ -17,8 +17,12 @@ from modules.notify.email_service import send_daily_digest
 from modules.notify.config import DAILY_DIGEST_HOUR_UTC
 
 
-async def fetch_predictions_last_24h(session, disaster_type: str | None, region: str | None):
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+async def fetch_predictions_today(session, disaster_type: str | None, region: str | None):
+    # "Today" = since midnight UTC, not a rolling 24h window — so
+    # triggering digest-now always pulls everything predicted so far
+    # today, regardless of what time of day it's triggered.
+    now = datetime.now(timezone.utc)
+    cutoff = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
     stmt = select(PredictionModel).where(PredictionModel.predicted_time >= cutoff)
 
@@ -35,7 +39,7 @@ async def fetch_predictions_last_24h(session, disaster_type: str | None, region:
 
 def build_summary_lines(predictions) -> list[str]:
     if not predictions:
-        return ["No new predictions in the last 24 hours for your subscription."]
+        return ["No new predictions today for your subscription."]
 
     lines = []
     for p in predictions:
@@ -58,7 +62,7 @@ async def run_digest_once():
         subscribers = result.scalars().all()
 
         for sub in subscribers:
-            predictions = await fetch_predictions_last_24h(session, sub.disaster_type, sub.region)
+            predictions = await fetch_predictions_today(session, sub.disaster_type, sub.region)
             summary_lines = build_summary_lines(predictions)
             try:
                 await send_daily_digest(sub.email, sub.unsubscribe_token, summary_lines)
