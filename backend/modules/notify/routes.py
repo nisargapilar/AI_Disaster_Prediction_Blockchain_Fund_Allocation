@@ -2,16 +2,15 @@
 
 import secrets
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
-from fastapi.responses import HTMLResponse
-from modules.notify.templates import status_page
 
 from db import async_session
 from models import SubscriberModel
-from modules.notify.email_service import send_confirmation_email
-from modules.notify.digest import run_digest_once
+from modules.notify.templates import status_page
 from modules.notify.email_service import send_confirmation_email, send_unsubscribe_link
+from modules.notify.digest import run_digest_once
 
 
 router = APIRouter(prefix="/subscribe", tags=["notifications"])
@@ -21,6 +20,10 @@ class SubscribeRequest(BaseModel):
     email: EmailStr
     region: str | None = None       # None = alerts for all regions
     disaster_type: str | None = None  # None = alerts for all disaster types
+
+
+class UnsubscribeRequest(BaseModel):
+    email: EmailStr
 
 
 @router.post("")
@@ -47,59 +50,6 @@ async def subscribe(payload: SubscribeRequest):
     return {"status": "pending_confirmation"}
 
 
-@router.get("/confirm/{token}")
-async def confirm(token: str):
-    async with async_session() as session:
-        result = await session.execute(
-            select(SubscriberModel).where(SubscriberModel.confirm_token == token)
-        )
-        sub = result.scalar_one_or_none()
-        if not sub:
-            raise HTTPException(404, "Invalid confirmation link.")
-        sub.is_confirmed = True
-        await session.commit()
-    return {"status": "confirmed"}
-
-
-@router.get("/unsubscribe/{token}")
-async def unsubscribe(token: str):
-    async with async_session() as session:
-        result = await session.execute(
-            select(SubscriberModel).where(SubscriberModel.unsubscribe_token == token)
-        )
-        sub = result.scalar_one_or_none()
-        if not sub:
-            raise HTTPException(404, "Invalid unsubscribe link.")
-        sub.is_active = False
-        await session.commit()
-    return {"status": "unsubscribed"}
-
-@router.post("/digest-now")
-async def digest_now():
-    await run_digest_once()
-    return {"status": "digest_triggered"}
-
-
-class UnsubscribeRequest(BaseModel):
-    email: EmailStr
-
-
-@router.post("/unsubscribe-request")
-async def request_unsubscribe_link(payload: UnsubscribeRequest):
-    async with async_session() as session:
-        result = await session.execute(
-            select(SubscriberModel).where(SubscriberModel.email == payload.email)
-        )
-        sub = result.scalar_one_or_none()
-
-    # Always return the same response whether or not the email exists —
-    # otherwise this endpoint becomes a way to check who's subscribed.
-    if sub and sub.is_active:
-        await send_unsubscribe_link(sub.email, sub.unsubscribe_token)
-
-    return {"status": "if_subscribed_link_sent"}
-
-
 @router.get("/confirm/{token}", response_class=HTMLResponse)
 async def confirm(token: str):
     async with async_session() as session:
@@ -122,8 +72,29 @@ async def confirm(token: str):
     ))
 
 
-@router.get("/unsubscribe/{token}", response_class=HTMLResponse)
-async def unsubscribe(token: str):
+@router.post("/unsubscribe-request")
+async def request_unsubscribe_link(payload: UnsubscribeRequest):
+    async with async_session() as session:
+        result = await session.execute(
+            select(SubscriberModel).where(SubscriberModel.email == payload.email)
+        )
+        sub = result.scalar_one_or_none()
+
+        # Always return the same response whether or not the email exists —
+        # otherwise this endpoint becomes a way to check who's subscribed.
+        if sub and sub.is_active:
+            # Fresh token every time this is requested — invalidates any
+            # previously issued unsubscribe token for this subscriber, so
+            # an old email lying around can't be used later.
+            sub.unsubscribe_token = secrets.token_urlsafe(24)
+            await session.commit()
+            await send_unsubscribe_link(sub.email, sub.unsubscribe_token)
+
+    return {"status": "if_subscribed_link_sent"}
+
+
+@router.get("/unsubscribe/confirm/{token}", response_class=HTMLResponse)
+async def confirm_unsubscribe(token: str):
     async with async_session() as session:
         result = await session.execute(
             select(SubscriberModel).where(SubscriberModel.unsubscribe_token == token)
@@ -131,7 +102,7 @@ async def unsubscribe(token: str):
         sub = result.scalar_one_or_none()
         if not sub:
             return HTMLResponse(
-                status_page(title="Invalid link", message="This unsubscribe link is invalid or has already been used.", ok=False),
+                status_page(title="Invalid token", message="This unsubscribe token is invalid or has already been used.", ok=False),
                 status_code=404,
             )
         sub.is_active = False
@@ -142,3 +113,9 @@ async def unsubscribe(token: str):
         message="You won't receive any more alerts from DisasterShield AI. If this was a mistake, you can subscribe again anytime.",
         ok=True,
     ))
+
+
+@router.post("/digest-now")
+async def digest_now():
+    await run_digest_once()
+    return {"status": "digest_triggered"}

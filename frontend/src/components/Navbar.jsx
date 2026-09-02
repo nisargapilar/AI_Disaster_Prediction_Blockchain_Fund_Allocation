@@ -9,13 +9,26 @@ export default function Navbar({ view, setView }) {
     { id: "dashboard", label: "Dashboard" },
     { id: "detect-select", label: "Detection" },
     { id: "predict-select", label: "Prediction" },
+    { id: "subscribe", label: "Alerts" },
     { id: "funds", label: "Funds" },
   ];
   const isActive = (id) => {
     if (id === "detect-select")
-      return view === "detect-select" || view === "eq-detection";
+      return (
+        view === "detect-select" ||
+        view === "eq-detection" ||
+        view === "flood-detection" ||
+        view === "forest-fire-detection" ||
+        view === "cyclone-detection"
+      );
     if (id === "predict-select")
-      return view === "predict-select" || view === "eq-prediction";
+      return (
+        view === "predict-select" ||
+        view === "eq-prediction" ||
+        view === "flood-prediction" ||
+        view === "forest-fire-prediction" ||
+        view === "cyclone-prediction"
+      );
     return view === id;
   };
 

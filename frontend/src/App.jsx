@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 
 import { ThemeProvider, useTheme, surface } from "./theme/ThemeContext";
@@ -19,6 +18,9 @@ import EarthquakePrediction from "./pages/prediction/EarthquakePrediction";
 import FloodPrediction from "./pages/prediction/FloodPrediction";
 import ForestFirePrediction from "./pages/prediction/ForestFirePrediction";
 import CyclonePrediction from "./pages/prediction/CyclonePrediction";
+
+// Alerts
+import Subscribe from "./pages/Subscribe";
 
 // Funds
 import FundsPlaceholder from "./pages/funds/FundsPlaceholder";
@@ -42,24 +44,14 @@ function Shell() {
   // DETECTION SELECT
   // ============================================================
   else if (view === "detect-select") {
-    page = (
-      <DisasterSelect
-        mode="detection"
-        setView={setView}
-      />
-    );
+    page = <DisasterSelect mode="detection" setView={setView} />;
   }
 
   // ============================================================
   // PREDICTION SELECT
   // ============================================================
   else if (view === "predict-select") {
-    page = (
-      <DisasterSelect
-        mode="prediction"
-        setView={setView}
-      />
-    );
+    page = <DisasterSelect mode="prediction" setView={setView} />;
   }
 
   // ============================================================
@@ -119,6 +111,13 @@ function Shell() {
   }
 
   // ============================================================
+  // ALERTS / SUBSCRIBE
+  // ============================================================
+  else if (view === "subscribe") {
+    page = <Subscribe />;
+  }
+
+  // ============================================================
   // FUNDS
   // ============================================================
   else if (view === "funds") {
@@ -134,10 +133,7 @@ function Shell() {
 
   return (
     <div className={`min-h-screen ${s.app}`}>
-      <Navbar
-        view={view}
-        setView={setView}
-      />
+      <Navbar view={view} setView={setView} />
 
       {page}
     </div>
@@ -151,4 +147,3 @@ export default function App() {
     </ThemeProvider>
   );
 }
-
