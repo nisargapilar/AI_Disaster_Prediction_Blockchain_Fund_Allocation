@@ -10,6 +10,9 @@ from modules.notify.email_templates import (
     confirmation_email,
     prediction_alert_email,
     digest_email,
+    _shell,
+    _button,
+    _token_box,
 )
 
 SMTP_HOST = os.environ["SMTP_HOST"]
@@ -40,6 +43,7 @@ async def send_confirmation_email(email: str, token: str):
     text_body = (
         f"Confirm your subscription to disaster alerts.\n\n"
         f"Click to confirm: {link}\n\n"
+        f"Or paste this token manually: {token}\n\n"
         f"If you didn't request this, ignore this email."
     )
     html_body = confirmation_email(link, token)
@@ -47,16 +51,18 @@ async def send_confirmation_email(email: str, token: str):
 
 
 async def send_unsubscribe_link(email: str, unsubscribe_token: str):
-    link = f"{BASE_URL}/subscribe/unsubscribe/{unsubscribe_token}"
+    # Was missing "/confirm/" — this must match the route exactly:
+    # GET /subscribe/unsubscribe/confirm/{token} in routes.py
+    link = f"{BASE_URL}/subscribe/unsubscribe/confirm/{unsubscribe_token}"
     text_body = (
         f"You requested your unsubscribe link for disaster alerts.\n\n"
         f"Click to unsubscribe: {link}\n\n"
+        f"Or paste this token manually: {unsubscribe_token}\n\n"
         f"If you didn't request this, you can safely ignore this email — "
         f"no action will be taken."
     )
-    # Reuses the confirmation template's shell/button styling, just with
-    # different copy — no need for a fourth bespoke template.
-    from modules.notify.email_templates import _shell, _button
+    # Same shape as confirmation_email: shell + button + token box, so
+    # unsubscribe matches subscribe's confirmation flow exactly.
     html_body = _shell(
         f"""
         <h1 style="margin:0 0 10px; font-size:17px; color:#f1f5f9; font-weight:bold;">Your unsubscribe link</h1>
@@ -64,6 +70,7 @@ async def send_unsubscribe_link(email: str, unsubscribe_token: str):
           You (or someone using this email) requested a link to unsubscribe from disaster alerts.
         </p>
         {_button("Unsubscribe", link, color="#94a3b8", border="rgba(255,255,255,0.12)", bg="rgba(255,255,255,0.03)")}
+        {_token_box(unsubscribe_token)}
         <p style="margin:24px 0 0; font-size:11px; line-height:1.6; color:#475569;">
           Didn't request this? No action will be taken — you'll keep receiving alerts as normal.
         </p>
@@ -75,7 +82,8 @@ async def send_unsubscribe_link(email: str, unsubscribe_token: str):
 
 async def send_prediction_alert(email: str, unsubscribe_token: str, disaster_type: str,
                                  region: str, risk_score: float, severity_tier: str):
-    unsub_link = f"{BASE_URL}/subscribe/unsubscribe/{unsubscribe_token}"
+    # Also missing "/confirm/" — same route as above.
+    unsub_link = f"{BASE_URL}/subscribe/unsubscribe/confirm/{unsubscribe_token}"
     text_body = (
         f"Early warning: {disaster_type} risk detected in {region}\n"
         f"Severity: {severity_tier.upper()} (risk score: {risk_score:.2f})\n\n"
@@ -87,7 +95,8 @@ async def send_prediction_alert(email: str, unsubscribe_token: str, disaster_typ
 
 
 async def send_daily_digest(email: str, unsubscribe_token: str, summary_lines: list[str]):
-    unsub_link = f"{BASE_URL}/subscribe/unsubscribe/{unsubscribe_token}"
+    # Also missing "/confirm/" — same route as above.
+    unsub_link = f"{BASE_URL}/subscribe/unsubscribe/confirm/{unsubscribe_token}"
     text_body = (
         "Your daily disaster monitoring summary:\n\n"
         + "\n".join(summary_lines)

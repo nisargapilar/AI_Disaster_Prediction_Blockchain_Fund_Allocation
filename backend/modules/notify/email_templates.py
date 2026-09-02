@@ -75,6 +75,7 @@ def _button(label: str, url: str, color: str = "#22d3ee", border: str = "rgba(34
     </table>
     """
 
+
 def _token_box(token: str) -> str:
     return f"""
     <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:16px;">
@@ -90,6 +91,7 @@ def _token_box(token: str) -> str:
       </tr>
     </table>
     """
+
 
 def confirmation_email(confirm_url: str, confirm_token: str) -> str:
     body = f"""
@@ -107,6 +109,7 @@ def confirmation_email(confirm_url: str, confirm_token: str) -> str:
       </p>
     """
     return _shell(body, preheader="Confirm your disaster alert subscription")
+
 
 def prediction_alert_email(disaster_type: str, region: str, risk_score: float, severity_tier: str, unsub_url: str) -> str:
     sev = severity_tier.lower()

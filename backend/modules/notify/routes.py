@@ -37,8 +37,13 @@ async def subscribe(payload: SubscribeRequest):
 
         sub = SubscriberModel(
             email=payload.email,
-            region=payload.region,
-            disaster_type=payload.disaster_type,
+            # Normalize "" (sent by the frontend for "All regions" / "All
+            # disaster types") to None. Downstream queries (notify.py,
+            # digest.py) treat None as "match everything" but "" matches
+            # nothing real — without this, "All" subscribers silently
+            # never get alerted.
+            region=payload.region or None,
+            disaster_type=payload.disaster_type or None,
             confirm_token=secrets.token_urlsafe(24),
             unsubscribe_token=secrets.token_urlsafe(24),
         )
