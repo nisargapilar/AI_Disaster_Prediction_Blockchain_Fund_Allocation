@@ -49,3 +49,14 @@ class PredictionModel(Base):
     matched_event_id = Column(UUID(as_uuid=True), ForeignKey("events.event_id"), nullable=True)
     is_simulated = Column(Boolean, nullable=False, default=False)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+class DistributionRecordModel(Base):
+    __tablename__ = "distribution_records"
+
+    record_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_id = Column(UUID(as_uuid=True), ForeignKey("events.event_id"), nullable=False)
+    beneficiary_hash = Column(String, nullable=False)
+    mock_id_last4 = Column(String, nullable=True)
+    tx_hash = Column(String, nullable=True)
+    status = Column(String, nullable=False, default="pending")
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())

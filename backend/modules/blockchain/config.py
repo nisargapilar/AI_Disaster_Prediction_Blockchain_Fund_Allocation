@@ -1,0 +1,20 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+AMOY_RPC_URL = os.getenv("AMOY_RPC_URL")
+PRIVATE_KEY = os.getenv("PRIVATE_KEY")
+CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS", "0x5D556C4307932FF613c80dEB8dF600378E401EC5")
+
+# TODO: replace with your actual generated NGO wallet address before demo
+NGO_WALLET_ADDRESS = "0x0000000000000000000000000000000000dEaD"
+
+FIXED_RELEASE_AMOUNT_POL = 0.005
+
+# Mangalore bounding box filter
+MANGALORE_LAT = 12.9141
+MANGALORE_LON = 74.8560
+MANGALORE_RADIUS_DEG = 0.5
+
+POLL_INTERVAL_SECONDS = 30

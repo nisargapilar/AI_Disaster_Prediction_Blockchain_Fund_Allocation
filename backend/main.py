@@ -3,6 +3,12 @@ import asyncio
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
 
+
+# ===========================================================
+# BLOCKCHAIN
+# ===========================================================
+from modules.blockchain.poller import start_polling as blockchain_start_polling
+
 load_dotenv()
 
 # ============================================================
@@ -163,10 +169,18 @@ async def startup_event():
     )
     print("Cyclone prediction: ENABLED")
 
+
+    # BLOCKCHAIN
+    print("Starting Blockchain fund-release poller...")
+    asyncio.create_task(blockchain_start_polling())
+    print("Blockchain fund-release poller: ENABLED")
+
     # COMPLETE
     print("========================================")
     print("ALL SERVICES STARTED")
     print("========================================")
+
+
 
 
 # ============================================================
