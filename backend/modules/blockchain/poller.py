@@ -21,17 +21,22 @@ async def process_pending_events():
             select(EventModel).where(EventModel.fund_status == "pending")
         )
         pending_events = result.scalars().all()
+        print(f"[poller] Found {len(pending_events)} pending event(s)")
 
         for event in pending_events:
-            if not is_in_mangalore(event.lat, event.lon):
-                continue  # leave as "pending" — out of scope for this demo
+            in_zone = is_in_mangalore(event.lat, event.lon)
+            print(f"[poller] Event {event.event_id} ({event.region}, lat={event.lat}, lon={event.lon}) - in Mangalore zone: {in_zone}")
 
+            if not in_zone:
+                continue
+
+            print(f"[poller] Triggering release for event {event.event_id}...")
             outcome = trigger_fund_release(
                 event_id=str(event.event_id),
                 disaster_type=event.disaster_type,
                 region=event.region,
             )
-
+            print(f"[poller] Outcome: {outcome}")
             event.fund_status = "released" if outcome["status"] == "released" else "failed"
             await session.commit()
 
@@ -44,4 +49,3 @@ async def start_polling():
         except Exception as e:
             print("Blockchain poller error:", e)
         await asyncio.sleep(POLL_INTERVAL_SECONDS)
-        
