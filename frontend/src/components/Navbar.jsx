@@ -11,6 +11,8 @@ export default function Navbar({ view, setView }) {
     { id: "predict-select", label: "Prediction" },
     { id: "subscribe", label: "Alerts" },
     { id: "funds", label: "Funds" },
+    { id: "verify-beneficiary", label: "Verify" },
+    { id: "beneficiary-card", label: "ID Card" },
   ];
   const isActive = (id) => {
     if (id === "detect-select")

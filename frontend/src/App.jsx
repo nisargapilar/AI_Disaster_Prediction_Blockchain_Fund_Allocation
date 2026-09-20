@@ -23,6 +23,9 @@ import CyclonePrediction from "./pages/prediction/CyclonePrediction";
 import Subscribe from "./pages/Subscribe.jsx";
 // Funds
 import FundsPlaceholder from "./pages/funds/FundsPlaceholder";
+import BeneficiaryCard from "./pages/funds/BeneficiaryCard";
+//verifying beneficiary
+import VerifyBeneficiary from "./pages/funds/VerifyBeneficiary";
 
 function Shell() {
   const [view, setView] = useState("dashboard");
@@ -117,10 +120,24 @@ function Shell() {
   }
 
   // ============================================================
+  // BENEFICIARY ID CARD
+  // ============================================================
+  else if (view === "beneficiary-card") {
+    page = <BeneficiaryCard setView={setView} />;
+  }
+
+  // ============================================================
+  // VERIFY BENEFICIARY
+  // ============================================================
+  else if (view === "verify-beneficiary") {
+    page = <VerifyBeneficiary />;
+  }
+
+  // ============================================================
   // FUNDS
   // ============================================================
   else if (view === "funds") {
-    page = <FundsPlaceholder />;
+    page = <FundsPlaceholder setView={setView} />;
   }
 
   // ============================================================
