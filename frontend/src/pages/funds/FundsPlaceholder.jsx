@@ -47,7 +47,9 @@ export default function FundsPlaceholder() {
   }
 
   useEffect(() => {
-    loadDashboard();
+    queueMicrotask(() => {
+      loadDashboard();
+    });
   }, []);
 
   async function handleVerify(e) {
