@@ -4,13 +4,14 @@ from db import async_session
 from models import DistributionRecordModel
 
 
-async def verify_beneficiary(event_id: str, mock_id: str) -> dict:
+async def verify_beneficiary(event_id: str, mock_id: str, mock_name: str | None = None) -> dict:
     beneficiary_hash = Web3.keccak(text=mock_id)
     beneficiary_hash_hex = beneficiary_hash.hex()
 
     async with async_session() as session:
         record = DistributionRecordModel(
             event_id=event_id,
+            mock_name=mock_name,
             beneficiary_hash=beneficiary_hash_hex,
             mock_id_last4=mock_id[-4:] if len(mock_id) >= 4 else mock_id,
             status="pending",

@@ -92,7 +92,7 @@ export default function FundsPlaceholder({ setView }) {
                   className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded border ${s.panel} border-white/5`}
                 >
                   <div className="flex flex-col">
-                    <span className="text-sm font-mono">
+                    <span className={`text-sm font-mono ${s.textPrimary}`}>
                       {ev.disasterType} — {ev.region}
                     </span>
                     <span

@@ -55,6 +55,7 @@ class DistributionRecordModel(Base):
 
     record_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     event_id = Column(UUID(as_uuid=True), ForeignKey("events.event_id"), nullable=False)
+    mock_name = Column(String, nullable=True)
     beneficiary_hash = Column(String, nullable=False)
     mock_id_last4 = Column(String, nullable=True)
     tx_hash = Column(String, nullable=True)

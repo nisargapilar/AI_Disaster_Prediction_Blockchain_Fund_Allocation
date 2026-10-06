@@ -23,10 +23,11 @@ export function fetchDashboard() {
   return get("/api/blockchain/dashboard");
 }
 
-export function verifyBeneficiary(eventId, mockId) {
+export async function verifyBeneficiary(eventId, mockId, mockName) {
   return post("/api/blockchain/verify-beneficiary", {
     event_id: eventId,
     mock_id: mockId,
+    mock_name: mockName || null,
   });
 }
 

@@ -13,6 +13,7 @@ router = APIRouter(prefix="/api/blockchain", tags=["blockchain"])
 class VerifyBeneficiaryRequest(BaseModel):
     event_id: str
     mock_id: str
+    mock_name: str | None = None
 
 
 @router.post("/verify-beneficiary")
@@ -30,7 +31,11 @@ async def verify_beneficiary_endpoint(payload: VerifyBeneficiaryRequest):
     if len(payload.mock_id) < 4:
         raise HTTPException(status_code=400, detail="mock_id must be at least 4 characters")
 
-    outcome = await verify_beneficiary(event_id=payload.event_id, mock_id=payload.mock_id)
+    outcome = await verify_beneficiary(
+        event_id=payload.event_id,
+        mock_id=payload.mock_id,
+        mock_name=payload.mock_name,
+    )
 
     if outcome["status"] == "failed":
         raise HTTPException(status_code=500, detail=outcome.get("error", "Verification failed"))
@@ -61,6 +66,7 @@ async def dashboard():
         records_by_event.setdefault(str(r.event_id), []).append({
             "record_id": str(r.record_id),
             "mock_id_last4": r.mock_id_last4,
+            "mock_name": r.mock_name,
             "status": r.status,
             "tx_hash": r.tx_hash,
         })

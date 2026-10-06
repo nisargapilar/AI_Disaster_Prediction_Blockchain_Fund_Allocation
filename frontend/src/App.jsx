@@ -26,6 +26,7 @@ import FundsPlaceholder from "./pages/funds/FundsPlaceholder";
 import BeneficiaryCard from "./pages/funds/BeneficiaryCard";
 //verifying beneficiary
 import VerifyBeneficiary from "./pages/funds/VerifyBeneficiary";
+import VerifiedBeneficiaries from "./pages/funds/VerifiedBeneficiaries";
 
 function Shell() {
   const [view, setView] = useState("dashboard");
@@ -132,6 +133,10 @@ function Shell() {
   else if (view === "verify-beneficiary") {
     page = <VerifyBeneficiary />;
   }
+
+  else if (view === "verified-list") {
+  page = <VerifiedBeneficiaries />;
+}
 
   // ============================================================
   // FUNDS

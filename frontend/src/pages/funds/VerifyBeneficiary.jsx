@@ -17,22 +17,26 @@ export default function VerifyBeneficiary() {
   const [events, setEvents] = useState([]);
   const [selectedEventId, setSelectedEventId] = useState("");
   const [mockId, setMockId] = useState("");
+  const [mockName, setMockName] = useState("");
   const [verifyResult, setVerifyResult] = useState(null);
   const [verifying, setVerifying] = useState(false);
 
   const [showScanner, setShowScanner] = useState(false);
   const scannerRef = useRef(null);
 
-  useEffect(() => {
-    async function loadEvents() {
-      try {
-        const data = await fetchDashboard();
-        setEvents(data.events.map(normalizeFundEvent));
-      } catch {
-        // event list is best-effort here; verify form just shows empty options on failure
-      }
+  async function loadEvents() {
+    try {
+      const data = await fetchDashboard();
+      setEvents(data.events.map(normalizeFundEvent));
+    } catch {
+      // event list is best-effort here; verify form just shows empty options on failure
     }
-    loadEvents();
+  }
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      loadEvents();
+    });
   }, []);
 
   useEffect(() => {
@@ -48,18 +52,20 @@ export default function VerifyBeneficiary() {
     scanner.render(
       (decodedText) => {
         let scannedId = decodedText;
+        let scannedName = "";
         try {
           const parsed = JSON.parse(decodedText);
           if (parsed.id) scannedId = parsed.id;
+          if (parsed.name) scannedName = parsed.name;
         } catch {
           // not JSON — treat decodedText as the raw ID
         }
         setMockId(scannedId);
+        setMockName(scannedName);
         setShowScanner(false);
       },
       () => {},
     );
-
     return () => {
       scanner.clear().catch(() => {});
     };
@@ -71,9 +77,10 @@ export default function VerifyBeneficiary() {
     setVerifying(true);
     setVerifyResult(null);
     try {
-      const result = await verifyBeneficiary(selectedEventId, mockId);
+      const result = await verifyBeneficiary(selectedEventId, mockId, mockName);
       setVerifyResult({ ok: true, ...result });
       setMockId("");
+      setMockName("");
     } catch (err) {
       setVerifyResult({ ok: false, error: err.message });
     } finally {
@@ -131,6 +138,21 @@ export default function VerifyBeneficiary() {
                 value={mockId}
                 onChange={(e) => setMockId(e.target.value)}
                 placeholder="e.g. 123456789012"
+                className={`w-full px-3 py-2 rounded border border-white/10 bg-transparent text-sm font-mono ${s.textPrimary}`}
+              />
+            </div>
+
+            <div>
+              <label
+                className={`block text-[10px] font-mono uppercase tracking-widest mb-1 ${s.textSecondary}`}
+              >
+                Name (from scan, optional)
+              </label>
+              <input
+                type="text"
+                value={mockName}
+                onChange={(e) => setMockName(e.target.value)}
+                placeholder="auto-filled when scanned"
                 className={`w-full px-3 py-2 rounded border border-white/10 bg-transparent text-sm font-mono ${s.textPrimary}`}
               />
             </div>
