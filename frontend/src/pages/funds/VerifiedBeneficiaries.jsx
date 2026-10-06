@@ -114,11 +114,14 @@ export default function VerifiedBeneficiaries() {
                             {rec.mock_id_last4 || "----"}
                           </span>
                           {rec.tx_hash && (
-                            <span
-                              className={`text-[10px] font-mono truncate max-w-xs ${s.textSecondary}`}
+                            <a
+                              href={`https://amoy.polygonscan.com/tx/${rec.tx_hash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`text-[10px] font-mono truncate max-w-xs underline hover:opacity-80 ${s.textSecondary}`}
                             >
                               tx: {rec.tx_hash}
-                            </span>
+                            </a>
                           )}
                         </div>
                         <RecordStatusBadge status={rec.status} />

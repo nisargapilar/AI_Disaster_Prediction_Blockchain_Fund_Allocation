@@ -178,7 +178,14 @@ export default function VerifyBeneficiary() {
                 <>
                   status: {verifyResult.status}
                   {verifyResult.tx_hash && (
-                    <div className="truncate">tx: {verifyResult.tx_hash}</div>
+                    <a
+                      href={`https://amoy.polygonscan.com/tx/${verifyResult.tx_hash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block truncate underline hover:opacity-80"
+                    >
+                      tx: {verifyResult.tx_hash}
+                    </a>
                   )}
                 </>
               ) : (
