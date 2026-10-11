@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { Mountain, RefreshCw, MapPin, Activity, BellRing } from "lucide-react";
+import {
+  Mountain,
+  RefreshCw,
+  MapPin,
+  Activity,
+  BellRing,
+  Play,
+} from "lucide-react";
 import { useTheme, surface, accentText } from "../../theme/ThemeContext";
 import { Panel, SevBadge } from "../../components/ui";
 import RealMap from "../../components/RealMap";
@@ -9,6 +16,7 @@ import {
   fetchPredictedEarthquakes,
   normalizeDetection,
   normalizeAndDedupePredictions,
+  simulateEarthquakePrediction,
 } from "../../api/earthquake";
 
 export default function EarthquakePrediction() {
@@ -18,6 +26,9 @@ export default function EarthquakePrediction() {
   const [selectedId, setSelectedId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const [simulating, setSimulating] = useState(false);
+  const [simMessage, setSimMessage] = useState(null);
 
   async function load() {
     setLoading(true);
@@ -41,6 +52,20 @@ export default function EarthquakePrediction() {
   useEffect(() => {
     load();
   }, []);
+
+  async function handleSimulate() {
+    setSimulating(true);
+    setSimMessage(null);
+    try {
+      await simulateEarthquakePrediction();
+      setSimMessage({ ok: true, text: "Simulated prediction run completed." });
+      await load();
+    } catch (err) {
+      setSimMessage({ ok: false, text: err.message });
+    } finally {
+      setSimulating(false);
+    }
+  }
 
   const selected = predictions.find((p) => p.id === selectedId);
   const points = predictions
@@ -144,6 +169,42 @@ export default function EarthquakePrediction() {
             </div>
           </Panel>
         </div>
+
+        <Panel
+          title="Simulate Prediction (demo)"
+          icon={Play}
+          accent="violet"
+          dashed
+        >
+          <button
+            type="button"
+            onClick={handleSimulate}
+            disabled={simulating}
+            className={`px-4 py-2 rounded text-xs font-mono uppercase tracking-widest border ${accentText(theme, "violet")} border-violet-400/30 hover:bg-violet-400/10 disabled:opacity-40`}
+          >
+            {simulating ? "simulating..." : "run simulated prediction"}
+          </button>
+
+          {simMessage && (
+            <div
+              className={`mt-3 px-3 py-2 rounded border text-xs font-mono ${
+                simMessage.ok
+                  ? "border-emerald-400/30 text-emerald-400"
+                  : "border-red-400/30 text-red-400"
+              }`}
+            >
+              {simMessage.text}
+            </div>
+          )}
+
+          <div
+            className={`mt-3 pt-3 border-t ${s.borderFaint} text-[10px] font-mono ${s.textFaint}`}
+          >
+            Demo tool: triggers the prediction model on demand instead of
+            waiting for the next scheduled run. Results are flagged as
+            simulated.
+          </div>
+        </Panel>
 
         {selected && (
           <Panel

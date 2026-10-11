@@ -1,5 +1,4 @@
-// IMPORTANT: set this to the same BASE_URL used in src/api/blockchain.js
-const BASE_URL = "http://localhost:8000";
+const BASE_URL = "http://127.0.0.1:8000";
 
 const TOKEN_KEY = "operator_token";
 

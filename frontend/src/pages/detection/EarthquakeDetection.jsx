@@ -1,12 +1,20 @@
 import { useEffect, useState } from "react";
-import { Mountain, RefreshCw, MapPin, Activity, Database } from "lucide-react";
+import {
+  Mountain,
+  RefreshCw,
+  MapPin,
+  Activity,
+  Database,
+  Play,
+} from "lucide-react";
 import { useTheme, surface, accentText } from "../../theme/ThemeContext";
-import { Panel, SevBadge, Badge } from "../../components/ui";
+import { Panel, SevBadge } from "../../components/ui";
 import RealMap from "../../components/RealMap";
 import Breadcrumb from "../../components/Breadcrumb";
 import {
   fetchDetectedEarthquakes,
   normalizeDetection,
+  simulateEarthquakeDetection,
 } from "../../api/earthquake";
 
 export default function EarthquakeDetection({ setView }) {
@@ -16,6 +24,14 @@ export default function EarthquakeDetection({ setView }) {
   const [selectedId, setSelectedId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // simulate-detection form
+  const [simMagnitude, setSimMagnitude] = useState("6.5");
+  const [simLat, setSimLat] = useState("12.9141");
+  const [simLon, setSimLon] = useState("74.8560");
+  const [simRegion, setSimRegion] = useState("Mangaluru");
+  const [simulating, setSimulating] = useState(false);
+  const [simMessage, setSimMessage] = useState(null);
 
   async function load() {
     setLoading(true);
@@ -36,6 +52,34 @@ export default function EarthquakeDetection({ setView }) {
     load();
   }, []);
 
+  async function handleSimulate(e) {
+    e.preventDefault();
+    setSimulating(true);
+    setSimMessage(null);
+    try {
+      await simulateEarthquakeDetection({
+        magnitude: parseFloat(simMagnitude),
+        lat: parseFloat(simLat),
+        lon: parseFloat(simLon),
+        region: simRegion,
+      });
+      setSimMessage({ ok: true, text: "Simulated event created." });
+      await load();
+    } catch (err) {
+      setSimMessage({ ok: false, text: err.message });
+    } finally {
+      setSimulating(false);
+    }
+  }
+
+  const simValid =
+    simMagnitude !== "" &&
+    simLat !== "" &&
+    simLon !== "" &&
+    !Number.isNaN(parseFloat(simMagnitude)) &&
+    !Number.isNaN(parseFloat(simLat)) &&
+    !Number.isNaN(parseFloat(simLon));
+
   const selected = events.find((e) => e.id === selectedId);
   const points = events.map((e) => ({
     id: e.id,
@@ -43,6 +87,9 @@ export default function EarthquakeDetection({ setView }) {
     lon: e.rawLon,
     severity: e.severity,
   }));
+
+  const inputClass = `w-full px-3 py-2 rounded border border-white/10 bg-transparent text-sm font-mono ${s.textPrimary}`;
+  const labelClass = `block text-[10px] font-mono uppercase tracking-widest mb-1 ${s.textSecondary}`;
 
   return (
     <div>
@@ -123,6 +170,79 @@ export default function EarthquakeDetection({ setView }) {
             </div>
           </Panel>
         </div>
+
+        <Panel title="Simulate Detection (demo)" icon={Play} accent="cyan">
+          <form onSubmit={handleSimulate} className="space-y-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div>
+                <label className={labelClass}>Magnitude</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={simMagnitude}
+                  onChange={(e) => setSimMagnitude(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Latitude</label>
+                <input
+                  type="number"
+                  step="any"
+                  value={simLat}
+                  onChange={(e) => setSimLat(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Longitude</label>
+                <input
+                  type="number"
+                  step="any"
+                  value={simLon}
+                  onChange={(e) => setSimLon(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Region</label>
+                <input
+                  type="text"
+                  value={simRegion}
+                  onChange={(e) => setSimRegion(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={simulating || !simValid}
+              className={`px-4 py-2 rounded text-xs font-mono uppercase tracking-widest border ${accentText(theme, "cyan")} border-cyan-400/30 hover:bg-cyan-400/10 disabled:opacity-40`}
+            >
+              {simulating ? "simulating..." : "simulate detection"}
+            </button>
+          </form>
+
+          {simMessage && (
+            <div
+              className={`mt-3 px-3 py-2 rounded border text-xs font-mono ${
+                simMessage.ok
+                  ? "border-emerald-400/30 text-emerald-400"
+                  : "border-red-400/30 text-red-400"
+              }`}
+            >
+              {simMessage.text}
+            </div>
+          )}
+
+          <div
+            className={`mt-3 pt-3 border-t ${s.borderFaint} text-[10px] font-mono ${s.textFaint}`}
+          >
+            Demo tool: creates a simulated earthquake event through the same
+            pipeline as real detections.
+          </div>
+        </Panel>
 
         {selected && (
           <Panel

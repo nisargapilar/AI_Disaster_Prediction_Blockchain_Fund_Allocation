@@ -89,3 +89,45 @@ export function normalizeAndDedupePredictions(rawList, detections) {
       };
     });
 }
+
+export async function simulateEarthquakeDetection({
+  magnitude,
+  lat,
+  lon,
+  region,
+}) {
+  const params = new URLSearchParams({
+    magnitude: String(magnitude),
+    lat: String(lat),
+    lon: String(lon),
+  });
+  if (region) params.set("region", region);
+
+  const res = await fetch(
+    `${BASE_URL}/earthquake/simulate-detection?${params.toString()}`,
+    { method: "POST" },
+  );
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(
+      typeof data.detail === "string"
+        ? data.detail
+        : `Simulation failed (${res.status})`,
+    );
+  }
+  return data;
+}
+export async function simulateEarthquakePrediction() {
+  const res = await fetch(`${BASE_URL}/earthquake/simulate-prediction`, {
+    method: "POST",
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(
+      typeof data.detail === "string"
+        ? data.detail
+        : `Simulation failed (${res.status})`,
+    );
+  }
+  return data;
+}
