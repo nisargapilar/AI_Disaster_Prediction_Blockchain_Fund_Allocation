@@ -4,6 +4,8 @@ from sqlalchemy.dialects.postgresql import UUID, JSONB, TIMESTAMP
 from db import Base
 
 import uuid
+
+
 class EventModel(Base):
     __tablename__ = "events"
 
@@ -22,7 +24,6 @@ class EventModel(Base):
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
 
-
 class SubscriberModel(Base):
     __tablename__ = "subscribers"
 
@@ -35,6 +36,7 @@ class SubscriberModel(Base):
     confirm_token = Column(String, nullable=False, unique=True)
     unsubscribe_token = Column(String, nullable=False, unique=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
 
 class PredictionModel(Base):
     __tablename__ = "predictions"
@@ -50,11 +52,23 @@ class PredictionModel(Base):
     is_simulated = Column(Boolean, nullable=False, default=False)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
+
+class OperatorModel(Base):
+    __tablename__ = "operators"
+
+    operator_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    username = Column(String, nullable=False, unique=True, index=True)
+    password_hash = Column(String, nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+
 class DistributionRecordModel(Base):
     __tablename__ = "distribution_records"
 
     record_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     event_id = Column(UUID(as_uuid=True), ForeignKey("events.event_id"), nullable=False)
+    operator_id = Column(UUID(as_uuid=True), ForeignKey("operators.operator_id"), nullable=True)
     mock_name = Column(String, nullable=True)
     beneficiary_hash = Column(String, nullable=False)
     mock_id_last4 = Column(String, nullable=True)

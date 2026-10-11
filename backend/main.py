@@ -9,6 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 # ===========================================================
 from modules.blockchain.poller import start_polling as blockchain_start_polling
 from modules.blockchain.routes import router as blockchain_router
+from modules.blockchain.routes import router as blockchain_router
+from modules.blockchain.auth import router as auth_router
 
 load_dotenv()
 
@@ -100,6 +102,8 @@ app.include_router(forest_fire_router)
 app.include_router(flood_router)
 app.include_router(cyclone_router)
 app.include_router(blockchain_router)
+app.include_router(blockchain_router)
+app.include_router(auth_router)
 
 # ============================================================
 # STARTUP

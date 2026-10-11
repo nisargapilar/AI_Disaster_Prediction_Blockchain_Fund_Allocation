@@ -1,11 +1,14 @@
 import { useState } from "react";
 
 import { ThemeProvider, useTheme, surface } from "./theme/ThemeContext";
+import { AuthProvider } from "./auth/AuthContext";
+import { useAuth } from "./auth/useAuth";
 
 import Navbar from "./components/Navbar";
 
 import Dashboard from "./pages/Dashboard";
 import DisasterSelect from "./pages/DisasterSelect";
+import Login from "./pages/Login";
 
 // Detection pages
 import EarthquakeDetection from "./pages/detection/EarthquakeDetection";
@@ -21,10 +24,10 @@ import CyclonePrediction from "./pages/prediction/CyclonePrediction";
 
 // Alerts
 import Subscribe from "./pages/Subscribe.jsx";
+
 // Funds
 import FundsPlaceholder from "./pages/funds/FundsPlaceholder";
 import BeneficiaryCard from "./pages/funds/BeneficiaryCard";
-//verifying beneficiary
 import VerifyBeneficiary from "./pages/funds/VerifyBeneficiary";
 import VerifiedBeneficiaries from "./pages/funds/VerifiedBeneficiaries";
 
@@ -33,122 +36,56 @@ function Shell() {
 
   const { theme } = useTheme();
   const s = surface(theme);
+  const { operator, loading } = useAuth();
 
   let page;
 
-  // ============================================================
-  // DASHBOARD
-  // ============================================================
   if (view === "dashboard") {
     page = <Dashboard setView={setView} />;
-  }
-
-  // ============================================================
-  // DETECTION SELECT
-  // ============================================================
-  else if (view === "detect-select") {
+  } else if (view === "detect-select") {
     page = <DisasterSelect mode="detection" setView={setView} />;
-  }
-
-  // ============================================================
-  // PREDICTION SELECT
-  // ============================================================
-  else if (view === "predict-select") {
+  } else if (view === "predict-select") {
     page = <DisasterSelect mode="prediction" setView={setView} />;
-  }
-
-  // ============================================================
-  // EARTHQUAKE DETECTION
-  // ============================================================
-  else if (view === "eq-detection") {
+  } else if (view === "eq-detection") {
     page = <EarthquakeDetection setView={setView} />;
-  }
-
-  // ============================================================
-  // FLOOD DETECTION
-  // ============================================================
-  else if (view === "flood-detection") {
+  } else if (view === "flood-detection") {
     page = <FloodDetection setView={setView} />;
-  }
-
-  // ============================================================
-  // FOREST FIRE DETECTION
-  // ============================================================
-  else if (view === "forest-fire-detection") {
+  } else if (view === "forest-fire-detection") {
     page = <ForestFireDetection setView={setView} />;
-  }
-
-  // ============================================================
-  // CYCLONE DETECTION
-  // ============================================================
-  else if (view === "cyclone-detection") {
+  } else if (view === "cyclone-detection") {
     page = <CycloneDetection setView={setView} />;
-  }
-
-  // ============================================================
-  // EARTHQUAKE PREDICTION
-  // ============================================================
-  else if (view === "eq-prediction") {
+  } else if (view === "eq-prediction") {
     page = <EarthquakePrediction setView={setView} />;
-  }
-
-  // ============================================================
-  // FLOOD PREDICTION
-  // ============================================================
-  else if (view === "flood-prediction") {
+  } else if (view === "flood-prediction") {
     page = <FloodPrediction setView={setView} />;
-  }
-
-  // ============================================================
-  // FOREST FIRE PREDICTION
-  // ============================================================
-  else if (view === "forest-fire-prediction") {
+  } else if (view === "forest-fire-prediction") {
     page = <ForestFirePrediction setView={setView} />;
-  }
-
-  // ============================================================
-  // CYCLONE PREDICTION
-  // ============================================================
-  else if (view === "cyclone-prediction") {
+  } else if (view === "cyclone-prediction") {
     page = <CyclonePrediction setView={setView} />;
-  }
-
-  // ============================================================
-  // ALERTS / SUBSCRIBE
-  // ============================================================
-  else if (view === "subscribe") {
+  } else if (view === "subscribe") {
     page = <Subscribe />;
-  }
-
-  // ============================================================
-  // BENEFICIARY ID CARD
-  // ============================================================
-  else if (view === "beneficiary-card") {
+  } else if (view === "login") {
+    page = <Login setView={setView} />;
+  } else if (view === "verify-beneficiary") {
+    // Protected: only logged-in operators can reach the verify form
+    if (loading) {
+      page = (
+        <div className={`p-5 text-sm font-mono ${s.textSecondary}`}>
+          checking session...
+        </div>
+      );
+    } else if (!operator) {
+      page = <Login setView={setView} />;
+    } else {
+      page = <VerifyBeneficiary />;
+    }
+  } else if (view === "beneficiary-card") {
     page = <BeneficiaryCard setView={setView} />;
-  }
-
-  // ============================================================
-  // VERIFY BENEFICIARY
-  // ============================================================
-  else if (view === "verify-beneficiary") {
-    page = <VerifyBeneficiary />;
-  }
-
-  else if (view === "verified-list") {
-  page = <VerifiedBeneficiaries />;
-}
-
-  // ============================================================
-  // FUNDS
-  // ============================================================
-  else if (view === "funds") {
+  } else if (view === "verified-list") {
+    page = <VerifiedBeneficiaries />;
+  } else if (view === "funds") {
     page = <FundsPlaceholder setView={setView} />;
-  }
-
-  // ============================================================
-  // FALLBACK
-  // ============================================================
-  else {
+  } else {
     page = <Dashboard setView={setView} />;
   }
 
@@ -164,7 +101,9 @@ function Shell() {
 export default function App() {
   return (
     <ThemeProvider>
-      <Shell />
+      <AuthProvider>
+        <Shell />
+      </AuthProvider>
     </ThemeProvider>
   );
 }

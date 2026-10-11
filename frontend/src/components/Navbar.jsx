@@ -1,10 +1,12 @@
-import { Shield, Sun, Moon } from "lucide-react";
+import { Shield, Sun, Moon, LogIn, LogOut } from "lucide-react";
 import { useTheme, surface, accentText } from "../theme/ThemeContext";
 import { Badge, Clock24 } from "./ui";
-
+import { useAuth } from "../auth/useAuth";
 export default function Navbar({ view, setView }) {
   const { theme, toggle } = useTheme();
   const s = surface(theme);
+  const { operator, logout } = useAuth();
+
   const items = [
     { id: "dashboard", label: "Dashboard" },
     { id: "detect-select", label: "Detection" },
@@ -34,6 +36,11 @@ export default function Navbar({ view, setView }) {
       );
     return view === id;
   };
+
+  function handleLogout() {
+    logout();
+    setView("dashboard");
+  }
 
   return (
     <div className={`border-b border-cyan-400/20 ${s.nav}`}>
@@ -72,6 +79,31 @@ export default function Navbar({ view, setView }) {
         </nav>
 
         <div className="flex items-center gap-3">
+          {operator ? (
+            <div className="flex items-center gap-2">
+              <span
+                className={`text-[10px] font-mono uppercase tracking-widest ${s.textSecondary}`}
+              >
+                {operator.username}
+              </span>
+              <button
+                onClick={handleLogout}
+                className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono uppercase tracking-widest border ${s.borderSoft} ${s.textSecondary} hover:opacity-80`}
+              >
+                <LogOut className="w-3 h-3" />
+                logout
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setView("login")}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono uppercase tracking-widest border border-cyan-400/30 ${accentText(theme, "cyan")} hover:bg-cyan-400/10`}
+            >
+              <LogIn className="w-3 h-3" />
+              operator login
+            </button>
+          )}
+
           <button
             onClick={toggle}
             aria-label="Toggle theme"

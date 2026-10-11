@@ -112,6 +112,7 @@ export default function VerifiedBeneficiaries() {
                           >
                             {rec.mock_name || "Unnamed"} — ID ending in{" "}
                             {rec.mock_id_last4 || "----"}
+                            {rec.verified_by ? ` · by ${rec.verified_by}` : ""}
                           </span>
                           {rec.tx_hash && (
                             <a

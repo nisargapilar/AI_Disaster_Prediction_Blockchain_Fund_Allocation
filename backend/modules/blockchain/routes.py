@@ -1,11 +1,11 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
 from db import async_session
-from models import EventModel, DistributionRecordModel
+from models import EventModel, DistributionRecordModel, OperatorModel
 from modules.blockchain.verify import verify_beneficiary
+from modules.blockchain.auth import get_current_operator
 
 router = APIRouter(prefix="/api/blockchain", tags=["blockchain"])
 
@@ -17,8 +17,10 @@ class VerifyBeneficiaryRequest(BaseModel):
 
 
 @router.post("/verify-beneficiary")
-async def verify_beneficiary_endpoint(payload: VerifyBeneficiaryRequest):
-    # Confirm the event exists and is actually fund-eligible
+async def verify_beneficiary_endpoint(
+    payload: VerifyBeneficiaryRequest,
+    operator: OperatorModel = Depends(get_current_operator),
+):
     async with async_session() as session:
         result = await session.execute(
             select(EventModel).where(EventModel.event_id == payload.event_id)
@@ -28,6 +30,9 @@ async def verify_beneficiary_endpoint(payload: VerifyBeneficiaryRequest):
     if event is None:
         raise HTTPException(status_code=404, detail="Event not found")
 
+    if event.fund_status != "released":
+        raise HTTPException(status_code=400, detail="Funds have not been released for this event")
+
     if len(payload.mock_id) < 4:
         raise HTTPException(status_code=400, detail="mock_id must be at least 4 characters")
 
@@ -35,12 +40,14 @@ async def verify_beneficiary_endpoint(payload: VerifyBeneficiaryRequest):
         event_id=payload.event_id,
         mock_id=payload.mock_id,
         mock_name=payload.mock_name,
+        operator_id=operator.operator_id,
     )
 
     if outcome["status"] == "failed":
         raise HTTPException(status_code=500, detail=outcome.get("error", "Verification failed"))
 
     return outcome
+
 
 @router.get("/dashboard")
 async def dashboard():
@@ -61,6 +68,16 @@ async def dashboard():
         )
         all_records = records_result.scalars().all()
 
+        operator_ids = {r.operator_id for r in all_records if r.operator_id}
+        operators_by_id = {}
+        if operator_ids:
+            ops_result = await session.execute(
+                select(OperatorModel).where(OperatorModel.operator_id.in_(operator_ids))
+            )
+            operators_by_id = {
+                o.operator_id: o.username for o in ops_result.scalars().all()
+            }
+
     records_by_event = {}
     for r in all_records:
         records_by_event.setdefault(str(r.event_id), []).append({
@@ -69,6 +86,7 @@ async def dashboard():
             "mock_name": r.mock_name,
             "status": r.status,
             "tx_hash": r.tx_hash,
+            "verified_by": operators_by_id.get(r.operator_id),
         })
 
     return {

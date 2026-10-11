@@ -4,15 +4,14 @@ import { Html5QrcodeScanner } from "html5-qrcode";
 import { useTheme, surface, accentText } from "../../theme/ThemeContext";
 import { Panel } from "../../components/ui";
 import Breadcrumb from "../../components/Breadcrumb";
-import {
-  fetchDashboard,
-  verifyBeneficiary,
-  normalizeFundEvent,
-} from "../../api/blockchain";
+import { fetchDashboard, normalizeFundEvent } from "../../api/blockchain";
+import { verifyBeneficiaryAuthed } from "../../api/auth";
+import { useAuth } from "../../auth/useAuth";
 
 export default function VerifyBeneficiary() {
   const { theme } = useTheme();
   const s = surface(theme);
+  const { token, operator, logout } = useAuth();
 
   const [events, setEvents] = useState([]);
   const [selectedEventId, setSelectedEventId] = useState("");
@@ -58,7 +57,7 @@ export default function VerifyBeneficiary() {
           if (parsed.id) scannedId = parsed.id;
           if (parsed.name) scannedName = parsed.name;
         } catch {
-          // not JSON — treat decodedText as the raw ID
+          // not JSON, treat decodedText as the raw ID
         }
         setMockId(scannedId);
         setMockName(scannedName);
@@ -77,11 +76,21 @@ export default function VerifyBeneficiary() {
     setVerifying(true);
     setVerifyResult(null);
     try {
-      const result = await verifyBeneficiary(selectedEventId, mockId, mockName);
+      const result = await verifyBeneficiaryAuthed(
+        token,
+        selectedEventId,
+        mockId,
+        mockName,
+      );
       setVerifyResult({ ok: true, ...result });
       setMockId("");
       setMockName("");
     } catch (err) {
+      if (err.status === 401) {
+        // token expired or invalid, send the operator back to login
+        logout();
+        return;
+      }
       setVerifyResult({ ok: false, error: err.message });
     } finally {
       setVerifying(false);
@@ -93,6 +102,12 @@ export default function VerifyBeneficiary() {
       <Breadcrumb trail={["Dashboard", "Funds", "Verify"]} />
       <div className="p-5 max-w-2xl mx-auto space-y-5">
         <Panel title="Verify Beneficiary" icon={ShieldCheck} accent="violet">
+          <p
+            className={`mb-3 text-[10px] font-mono uppercase tracking-widest ${s.textSecondary}`}
+          >
+            signed in as {operator?.username}
+          </p>
+
           <button
             type="button"
             onClick={() => setShowScanner((v) => !v)}
@@ -114,13 +129,31 @@ export default function VerifyBeneficiary() {
               <select
                 value={selectedEventId}
                 onChange={(e) => setSelectedEventId(e.target.value)}
+                style={{ colorScheme: theme === "dark" ? "dark" : "light" }}
                 className={`w-full px-3 py-2 rounded border border-white/10 bg-transparent text-sm font-mono ${s.textPrimary}`}
               >
-                <option value="">select an event...</option>
+                <option
+                  value=""
+                  className={
+                    theme === "dark"
+                      ? "bg-slate-900 text-slate-100"
+                      : "bg-white text-slate-900"
+                  }
+                >
+                  select an event...
+                </option>
                 {events
                   .filter((ev) => ev.fundStatus === "released")
                   .map((ev) => (
-                    <option key={ev.id} value={ev.id}>
+                    <option
+                      key={ev.id}
+                      value={ev.id}
+                      className={
+                        theme === "dark"
+                          ? "bg-slate-900 text-slate-100"
+                          : "bg-white text-slate-900"
+                      }
+                    >
                       {ev.disasterType} — {ev.region} ({ev.eventTime})
                     </option>
                   ))}
